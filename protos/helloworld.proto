@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.helloworld";
+option java_outer_classname = "HelloWorldProto";
+//option csharp_namespace = "HelloWorld";
+
+package helloworld;
+
+// The greeting service definition.
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+
+  // Client to Server
+  rpc SendPosition (stream Position) returns (google.protobuf.Empty) {}
+
+  // Server to client
+  rpc GetPositions (google.protobuf.Empty) returns (stream Position) {}
+  rpc SayBye (ByeRequest) returns (ByeReply) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}
+
+// The request message containing the user's name.
+message Position {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// The request message containing the user's name.
+message ByeRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message ByeReply {
+  string message = 1;
+}
