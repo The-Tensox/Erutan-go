@@ -25,16 +25,16 @@ message Metadata {
 
 
 message NetVector3 {
-    float x = 1;
-    float y = 2;
-    float z = 3;
+    double x = 1;
+    double y = 2;
+    double z = 3;
 }
 
 message NetQuaternion {
-    float x = 1;
-    float y = 2;
-    float z = 3;
-    float w = 4;
+    double x = 1;
+    double y = 2;
+    double z = 3;
+    double w = 4;
 }
 
 // TODO: parent ...
@@ -50,8 +50,26 @@ message NetObject {
         FOOD = 1;
         GROUND = 2;
     }
+    repeated Component components = 7;
 }
 
+// Data-oriented design like
+message Component {
+    oneof type {
+        AnimalComponent animal = 1;
+        FoodComponent food = 2;
+        GroundComponent ground = 3;
+    }
+    message AnimalComponent {
+        double life = 1;
+        NetObject food = 2;
+        NetObject target = 3; 
+    }
+    message FoodComponent {
+    }
+    message GroundComponent {
+    }
+}
 
 message Packet {
     Metadata metadata = 1;
@@ -59,7 +77,8 @@ message Packet {
     oneof type {
         CreateObjectPacket create_object = 2;
         UpdatePositionPacket update_position = 3;
-        DestroyObjectPacket destroy_object = 4;
+        UpdateRotationPacket update_rotation = 4;
+        DestroyObjectPacket destroy_object = 5;
     }
 
     message CreateObjectPacket {
@@ -69,6 +88,11 @@ message Packet {
     message UpdatePositionPacket {
         string object_id = 1;
         NetVector3 position = 2;
+    }
+
+    message UpdateRotationPacket {
+        string object_id = 1;
+        NetQuaternion rotation = 2;
     }
 
     message DestroyObjectPacket {

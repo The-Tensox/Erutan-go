@@ -28,6 +28,9 @@ var (
 	key                = "server1.key"
 	// Broadcast is a global channel to send packets to clients
 	Broadcast chan erutan.Packet = make(chan erutan.Packet, 1000)
+
+	// TickRate defines the server's tick rate
+	TickRate float32 = 200
 )
 
 type server struct {
@@ -106,9 +109,6 @@ func (s *server) Run(ctx context.Context) error {
 }
 
 func (s *server) Stream(srv erutan.Erutan_StreamServer) error {
-	// Send world state to the client that connected
-	go SendWorldState()
-
 	tkn := RandomString()
 	go s.sendBroadcasts(srv, tkn)
 	for {
@@ -138,12 +138,16 @@ func (s *server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	stream := s.openStream(tkn)
 	defer s.closeStream(tkn)
 
+	// Send world state (only) to the client that connected
+	for _, packet := range WorldState() {
+		srv.Send(packet)
+	}
+
 	for {
 		select {
 		case <-srv.Context().Done():
 			return
 		case res := <-stream:
-			DebugLogf("Sending %v", res.GetCreateObject())
 			if s, ok := status.FromError(srv.Send(&res)); ok {
 				switch s.Code() {
 				case codes.OK:

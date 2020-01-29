@@ -70,3 +70,12 @@ func RandomString() string {
 	rand.Read(str)
 	return fmt.Sprintf("%x", str)
 }
+
+// Update is similar to Unity Updates
+func Update(fn func()) {
+	go func() {
+		for range time.Tick(time.Duration(TickRate) * time.Millisecond) {
+			fn()
+		}
+	}()
+}
