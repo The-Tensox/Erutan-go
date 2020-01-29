@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
@@ -57,4 +59,14 @@ func SignalContext(ctx context.Context) context.Context {
 	}()
 
 	return ctx
+}
+
+var seededRand *rand.Rand = rand.New(
+	rand.NewSource(time.Now().UnixNano()))
+
+// RandomString generates a random string of 4 bytes
+func RandomString() string {
+	str := make([]byte, 4)
+	rand.Read(str)
+	return fmt.Sprintf("%x", str)
 }

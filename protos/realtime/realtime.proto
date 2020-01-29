@@ -5,6 +5,7 @@ package erutan;
 option java_multiple_files = true;
 option java_package = "com.erutan";
 option java_outer_classname = "Erutan";
+option csharp_namespace = "Erutan.Scripts.Protos";
 import "google/protobuf/timestamp.proto";
 
 /*
@@ -15,65 +16,62 @@ service Erutan {
     /*
     Blabla
     */
-    rpc Login(LoginRequest) returns (LoginResponse) {}
-    rpc Logout(LogoutRequest) returns (LogoutResponse) {}
-    rpc Stream(stream StreamRequest) returns (stream StreamResponse) {}
+    rpc Stream(stream Packet) returns (stream Packet) {}
 }
 
-message LoginRequest {
-    string password = 1;
-    string name     = 2;
-}
-
-message LoginResponse {
-    string token = 1;
-}
-
-message LogoutRequest {
-    string token = 1;
-}
-
-message LogoutResponse {}
-
-
-message StreamRequest {
-    string message = 2;
-}
-
-message StreamResponse {
+message Metadata {
     google.protobuf.Timestamp timestamp = 1;
+}
 
-    oneof event {
-        Login    client_login    = 2;
-        Logout   client_logout   = 3;
-        Message  client_message  = 4;
-        Message  server_message  = 5;
-        Shutdown server_shutdown = 6;
+
+message NetVector3 {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message NetQuaternion {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+    float w = 4;
+}
+
+// TODO: parent ...
+message NetObject {
+    string object_id = 1;
+    string owner_id = 2;
+    NetVector3 position = 3;
+    NetQuaternion rotation = 4;
+    NetVector3 scale = 5;
+    Type type = 6;
+    enum Type {
+        ANIMAL = 0;
+        FOOD = 1;
+        GROUND = 2;
+    }
+}
+
+
+message Packet {
+    Metadata metadata = 1;
+
+    oneof type {
+        CreateObjectPacket create_object = 2;
+        UpdatePositionPacket update_position = 3;
+        DestroyObjectPacket destroy_object = 4;
     }
 
-    message Login {
-        string name = 1;
+    message CreateObjectPacket {
+        NetObject object = 1; 
     }
 
-    message Logout {
-        string name = 1;
+    message UpdatePositionPacket {
+        string object_id = 1;
+        NetVector3 position = 2;
     }
 
-    message Message {
-        string name    = 1;
-        string message = 2;
+    message DestroyObjectPacket {
+        string object_id = 1;
     }
-
-    message Packet {
-        oneof type {
-            Position position = 1;
-        }
-        message Position {
-            float x = 1;
-            float y = 2;
-            float z = 3;
-        }
-    }
-
-    message Shutdown {}
 }

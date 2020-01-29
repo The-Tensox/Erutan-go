@@ -2,31 +2,39 @@ package main
 
 import (
 	context "context"
-	"crypto/rand"
-	fmt "fmt"
 	"io"
+	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	erutan "github.com/user/erutan_two/protos/realtime"
 
-	"github.com/golang/protobuf/ptypes"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	keepalive "google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	status "google.golang.org/grpc/status"
 )
 
 const tokenHeader = "x-token"
 
+var (
+	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
+	errInvalidToken    = status.Errorf(codes.Unauthenticated, "invalid token")
+	crt                = "server1.crt"
+	key                = "server1.key"
+	// Broadcast is a global channel to send packets to clients
+	Broadcast chan erutan.Packet = make(chan erutan.Packet, 1000)
+)
+
 type server struct {
 	Host, Password string
 
-	Broadcast chan erutan.StreamResponse
-
 	ClientNames   map[string]string
-	ClientStreams map[string]chan erutan.StreamResponse
+	ClientStreams map[string]chan erutan.Packet
 
 	namesMtx, streamsMtx sync.RWMutex
 }
@@ -37,10 +45,8 @@ func Server(host, pass string) *server {
 		Host:     host,
 		Password: pass,
 
-		Broadcast: make(chan erutan.StreamResponse, 1000),
-
 		ClientNames:   make(map[string]string),
-		ClientStreams: make(map[string]chan erutan.StreamResponse),
+		ClientStreams: make(map[string]chan erutan.Packet),
 	}
 }
 
@@ -52,7 +58,28 @@ func (s *server) Run(ctx context.Context) error {
 		"starting on %s with password %q",
 		s.Host, s.Password)
 
-	srv := grpc.NewServer()
+	cert, err := credentials.NewServerTLSFromFile(crt, key)
+	if err != nil {
+		log.Fatalf("failed to load key pair: %s", err)
+	}
+
+	maxConnectionAgeGrace, _ := time.ParseDuration("20s")
+	t, _ := time.ParseDuration("1s")
+
+	opts := []grpc.ServerOption{
+		// The following grpc.ServerOption adds an interceptor for all unary
+		// RPCs. To configure an interceptor for streaming RPCs, see:
+		// https://godoc.org/google.golang.org/grpc#StreamInterceptor
+		grpc.UnaryInterceptor(ensureValidToken),
+		//grpc.StreamInterceptor(streamInterceptor),
+		// Enable TLS for all incoming connections.
+		grpc.Creds(cert),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionAgeGrace: maxConnectionAgeGrace,
+			Time:                  t,
+		}),
+	}
+	srv := grpc.NewServer(opts...)
 	erutan.RegisterErutanServer(srv, s)
 
 	l, err := net.Listen("tcp", s.Host)
@@ -62,6 +89,8 @@ func (s *server) Run(ctx context.Context) error {
 
 	go s.broadcast(ctx)
 
+	go Start()
+
 	go func() {
 		srv.Serve(l)
 		cancel()
@@ -69,89 +98,36 @@ func (s *server) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 
-	s.Broadcast <- erutan.StreamResponse{
-		Timestamp: ptypes.TimestampNow(),
-		Event: &erutan.StreamResponse_ServerShutdown{
-			&erutan.StreamResponse_Shutdown{}}}
-
-	close(s.Broadcast)
+	close(Broadcast)
 	ServerLogf(time.Now(), "shutting down")
 
 	srv.GracefulStop()
 	return nil
 }
 
-func (s *server) Login(ctx context.Context, req *erutan.LoginRequest) (*erutan.LoginResponse, error) {
-	switch {
-	case req.Password != s.Password:
-		return nil, status.Error(codes.Unauthenticated, "password is incorrect")
-	case req.Name == "":
-		return nil, status.Error(codes.InvalidArgument, "username is required")
-	}
-
-	tkn := s.genToken()
-	s.setName(tkn, req.Name)
-
-	ServerLogf(time.Now(), "%s (%s) has logged in", tkn, req.Name)
-
-	s.Broadcast <- erutan.StreamResponse{
-		Timestamp: ptypes.TimestampNow(),
-		Event: &erutan.StreamResponse_ClientLogin{&erutan.StreamResponse_Login{
-			Name: req.Name,
-		}},
-	}
-
-	return &erutan.LoginResponse{Token: tkn}, nil
-}
-
-func (s *server) Logout(ctx context.Context, req *erutan.LogoutRequest) (*erutan.LogoutResponse, error) {
-	name, ok := s.delName(req.Token)
-	if !ok {
-		return nil, status.Error(codes.NotFound, "token not found")
-	}
-
-	ServerLogf(time.Now(), "%s (%s) has logged out", req.Token, name)
-
-	s.Broadcast <- erutan.StreamResponse{
-		Timestamp: ptypes.TimestampNow(),
-		Event: &erutan.StreamResponse_ClientLogout{&erutan.StreamResponse_Logout{
-			Name: name,
-		}},
-	}
-
-	return new(erutan.LogoutResponse), nil
-}
-
 func (s *server) Stream(srv erutan.Erutan_StreamServer) error {
-	tkn, ok := s.extractToken(srv.Context())
-	if !ok {
-		return status.Error(codes.Unauthenticated, "missing token header")
-	}
+	// Send world state to the client that connected
+	go SendWorldState()
 
-	name, ok := s.getName(tkn)
-	if !ok {
-		return status.Error(codes.Unauthenticated, "invalid token")
-	}
-
+	tkn := RandomString()
 	go s.sendBroadcasts(srv, tkn)
-
 	for {
 		req, err := srv.Recv()
-		DebugLogf("client send %v", req)
-
 		if err == io.EOF {
 			break
 		} else if err != nil {
 			return err
 		}
-
-		s.Broadcast <- erutan.StreamResponse{
-			Timestamp: ptypes.TimestampNow(),
-			Event: &erutan.StreamResponse_ClientMessage{&erutan.StreamResponse_Message{
-				Name:    name,
-				Message: req.Message,
-			}},
-		}
+		DebugLogf("client send: %v", req)
+		// Use a type switch to determine which oneof was set.
+		/*
+			switch t := req.Type.(type) {
+			case *erutan.ClientToServer_UpdatePosition:
+				s.updatePosition(req.GetUpdatePosition())
+			default:
+				DebugLogf("client send: unimplemented packet handler: %v", t)
+			}
+		*/
 	}
 
 	<-srv.Context().Done()
@@ -162,29 +138,16 @@ func (s *server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	stream := s.openStream(tkn)
 	defer s.closeStream(tkn)
 
-	go func() {
-		for range time.Tick(2000 * time.Millisecond) {
-			srv.Send(&erutan.StreamResponse{
-				Timestamp: ptypes.TimestampNow(),
-				Event: &erutan.StreamResponse_ClientMessage{&erutan.StreamResponse_Message{
-					Name:    "Server",
-					Message: fmt.Sprintf("Welcome %s", s.ClientNames[tkn]),
-				}},
-			})
-		}
-	}()
-
 	for {
 		select {
 		case <-srv.Context().Done():
 			return
 		case res := <-stream:
+			DebugLogf("Sending %v", res.GetCreateObject())
 			if s, ok := status.FromError(srv.Send(&res)); ok {
 				switch s.Code() {
 				case codes.OK:
 					// noop
-					DebugLogf("res %v", res)
-
 				case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
 					DebugLogf("client (%s) terminated connection", tkn)
 					return
@@ -198,7 +161,7 @@ func (s *server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 }
 
 func (s *server) broadcast(ctx context.Context) {
-	for res := range s.Broadcast {
+	for res := range Broadcast {
 		s.streamsMtx.RLock()
 		for _, stream := range s.ClientStreams {
 			select {
@@ -212,8 +175,8 @@ func (s *server) broadcast(ctx context.Context) {
 	}
 }
 
-func (s *server) openStream(tkn string) (stream chan erutan.StreamResponse) {
-	stream = make(chan erutan.StreamResponse, 100)
+func (s *server) openStream(tkn string) (stream chan erutan.Packet) {
+	stream = make(chan erutan.Packet, 100)
 
 	s.streamsMtx.Lock()
 	s.ClientStreams[tkn] = stream
@@ -235,12 +198,6 @@ func (s *server) closeStream(tkn string) {
 	DebugLogf("closed stream for client %s", tkn)
 
 	s.streamsMtx.Unlock()
-}
-
-func (s *server) genToken() string {
-	tkn := make([]byte, 4)
-	rand.Read(tkn)
-	return fmt.Sprintf("%x", tkn)
 }
 
 func (s *server) getName(tkn string) (name string, ok bool) {
@@ -268,12 +225,46 @@ func (s *server) delName(tkn string) (name string, ok bool) {
 	return
 }
 
-func (s *server) extractToken(ctx context.Context) (tkn string, ok bool) {
-	md, ok := metadata.FromIncomingContext(ctx)
-
-	if !ok || len(md[tokenHeader]) == 0 {
-		return "", false
+// valid validates the authorization.
+func valid(authorization []string) bool {
+	if len(authorization) < 1 {
+		return false
 	}
+	token := strings.TrimPrefix(authorization[0], "Bearer ")
+	// Perform the token validation here. For the sake of this example, the code
+	// here forgoes any of the usual OAuth2 token validation and instead checks
+	// for a token matching an arbitrary string.
+	return token == "some-secret-token"
+}
 
-	return md[tokenHeader][0], true
+// ensureValidToken ensures a valid token exists within a request's metadata. If
+// the token is missing or invalid, the interceptor blocks execution of the
+// handler and returns an error. Otherwise, the interceptor invokes the unary
+// handler.
+func ensureValidToken(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	DebugLogf("yay")
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, errMissingMetadata
+	}
+	// The keys within metadata.MD are normalized to lowercase.
+	// See: https://godoc.org/google.golang.org/grpc/metadata#New
+	if !valid(md["authorization"]) {
+		return nil, errInvalidToken
+	}
+	// Continue execution of handler after ensuring a valid token.
+	return handler(ctx, req)
+}
+
+func streamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	DebugLogf("streamInterceptor")
+
+	/*s, _ := srv.(*server)
+
+	s.streamsMtx.Lock()
+
+	DebugLogf("streamInterceptor ", s.ClientStreams, ss, info, handler)
+	s.streamsMtx.Unlock()
+	*/
+	return nil
 }
