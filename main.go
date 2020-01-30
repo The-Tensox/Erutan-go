@@ -11,37 +11,38 @@ import (
 )
 
 var (
-	serverMode bool
-	debugMode  bool
-	host       string
-	password   string
-	username   string
+	debugMode bool
+	host      string
+	password  string
 )
 
 func init() {
-	flag.BoolVar(&serverMode, "s", false, "run as the server")
+	log.Printf("Init package")
+}
+
+func flags() {
 	flag.BoolVar(&debugMode, "v", false, "enable debug logging")
 	flag.StringVar(&host, "h", "0.0.0.0:50051", "the chat server's host")
 	flag.StringVar(&password, "p", "", "the chat server's password")
 	flag.Parse()
-}
-
-func init() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetFlags(0)
 }
 
-func main() {
+// RunMain starts the server and everything for prod, used in tests
+func RunMain() {
 	ctx := SignalContext(context.Background())
 	var err error
 
-	if serverMode {
-		DebugLogf("server mode")
-		err = Server(host, password).Run(ctx)
-	}
+	err = Server(host, password).Run(ctx)
 
 	if err != nil {
 		MessageLog(time.Now(), "<<Process>>", err.Error())
 		os.Exit(1)
 	}
+}
+
+func main() {
+	flags()
+	RunMain()
 }

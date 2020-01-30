@@ -29,8 +29,8 @@ var (
 	// Broadcast is a global channel to send packets to clients
 	Broadcast chan erutan.Packet = make(chan erutan.Packet, 1000)
 
-	// TickRate defines the server's tick rate
-	TickRate float32 = 200
+	// TickRate defines the server's tick rate, the lower the faster
+	TickRate float32 = 35
 )
 
 type server struct {
@@ -246,7 +246,6 @@ func valid(authorization []string) bool {
 // handler and returns an error. Otherwise, the interceptor invokes the unary
 // handler.
 func ensureValidToken(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	DebugLogf("yay")
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, errMissingMetadata
@@ -261,7 +260,6 @@ func ensureValidToken(ctx context.Context, req interface{}, info *grpc.UnaryServ
 }
 
 func streamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	DebugLogf("streamInterceptor")
 
 	/*s, _ := srv.(*server)
 

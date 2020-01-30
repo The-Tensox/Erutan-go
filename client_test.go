@@ -2,10 +2,8 @@ package main
 
 import (
 	context "context"
-	"flag"
 	"io"
 	"log"
-	"os"
 	"testing"
 
 	erutan "github.com/user/erutan_two/protos/realtime"
@@ -14,12 +12,10 @@ import (
 	"google.golang.org/grpc/credentials/oauth"
 )
 
-func initt() {
-	os.Args = append(os.Args, "-s")
-	os.Args = append(os.Args, "-v")
-	os.Args = append(os.Args, "-p \"\"")
-	os.Args = append(os.Args, "-h \"0.0.0.0:50051\"")
-	flag.Parse()
+func setFlags() {
+	debugMode = true
+	host = "0.0.0.0:50051"
+	password = ""
 }
 
 func google() (*grpc.ClientConn, error) {
@@ -37,7 +33,12 @@ func ssl() (*grpc.ClientConn, error) {
 }
 
 func TestClient(t *testing.T) {
-	//initt()
+	setFlags()
+	go RunMain()
+
+	// TODO: panic: runtime error: invalid memory address or nil pointer dereference [recovered]
+	//		 panic: runtime error: invalid memory address or nil pointer dereference
+	//		 [signal SIGSEGV: segmentation violation code=0x1 addr=0x30 pc=0x851a9b]
 	channel, _ := ssl()
 	client := erutan.NewErutanClient(channel)
 	stream, _ := client.Stream(context.Background())
