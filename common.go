@@ -72,11 +72,13 @@ func RandomString() string {
 }
 
 // Update is similar to Unity Updates
-func Update(fn func(deltaTime int64)) {
+func Update(fn func(deltaTime int64) bool) {
 	go func() {
 		var lastUpdate int64
 		for range time.Tick(time.Duration(TickRate) * time.Millisecond) {
-			fn(time.Now().Unix() - lastUpdate)
+			if fn(time.Now().Unix() - lastUpdate) {
+				return
+			}
 			lastUpdate = time.Now().Unix()
 		}
 	}()

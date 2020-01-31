@@ -1,6 +1,9 @@
 package main
 
 import (
+	"math/rand"
+
+	"github.com/golang/protobuf/ptypes"
 	erutan "github.com/user/erutan_two/protos/realtime"
 )
 
@@ -24,12 +27,36 @@ func NewFood(position erutan.NetVector3) *food {
 }
 
 func (f *food) Init() {
-	Update(func(timeDelta int64) {
-	})
 }
 
 func (f *food) GetObject() *erutan.NetObject { return &f.Object }
 
-func (f *food) OnCollisionEnter(collisionedObjectID string) {
-	DebugLogf("I %v got collisioned with %v", f.Object.ObjectId, collisionedObjectID)
+func (f *food) OnCollisionEnter(other Collider) {
+	// If we collided with animal
+	if _, ok := other.(*animal); ok {
+		f.GetObject().Position = &erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50}
+		EventDispatcher.Notify(Event{eventID: FoodMoved, value: *f.GetObject().Position})
+
+		StateUpdate <- f
+		Broadcast <- erutan.Packet{
+			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+			Type: &erutan.Packet_UpdatePosition{
+				UpdatePosition: &erutan.Packet_UpdatePositionPacket{
+					ObjectId: f.Object.ObjectId,
+					Position: f.GetObject().Position,
+				},
+			},
+		}
+		/*
+			Broadcast <- erutan.Packet{
+				Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+				Type: &erutan.Packet_FoodEaten{
+					FoodEaten: &erutan.Packet_FoodEatenPacket{
+						FoodId: f.Object.ObjectId,
+						Eater:  other.GetObject(),
+					},
+				},
+			}
+		*/
+	}
 }

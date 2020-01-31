@@ -62,8 +62,6 @@ message Component {
     }
     message AnimalComponent {
         double life = 1;
-        NetObject food = 2;
-        NetObject target = 3; 
     }
     message FoodComponent {
     }
@@ -79,8 +77,12 @@ message Packet {
         UpdatePositionPacket update_position = 3;
         UpdateRotationPacket update_rotation = 4;
         DestroyObjectPacket destroy_object = 5;
+
+        FoodEatenPacket food_eaten = 6;
+        UpdateAnimalPacket update_animal = 7;
     }
 
+    // General physical objects
     message CreateObjectPacket {
         NetObject object = 1; 
     }
@@ -97,5 +99,18 @@ message Packet {
 
     message DestroyObjectPacket {
         string object_id = 1;
+    }
+
+    // Animals & Environment
+
+    // Occurs when an animal hit a food -> gain life, food disappear ...
+    message FoodEatenPacket { // Idk about this packet, maybe for eating animations ...
+        string food_id = 1; // I guess will be useful in the future with several foods
+        NetObject eater = 2;
+    }
+
+    message UpdateAnimalPacket { // Maybe will have more params later
+        string object_id = 1;
+        double life = 2;
     }
 }

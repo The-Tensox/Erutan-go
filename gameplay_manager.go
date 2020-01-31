@@ -5,19 +5,23 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/ptypes"
+
 	erutan "github.com/user/erutan_two/protos/realtime"
 )
 
 var (
+	// EventDispatcher is a global event dispatcher (Observable)
+	EventDispatcher Watch = Watch{}
+
 	// State is used to store the world state
 	State map[string]Collider = make(map[string]Collider)
 
 	// StatesMtx is used to ensure safe concurrency on the State map
 	StatesMtx sync.RWMutex
 
-	// Movement is a global event to notify gameplay manager
-	// that a physic movement occured and a collision check has to be done
-	Movement chan string = make(chan string, 1000)
+	// StateUpdate is a global event to notify gameplay manager
+	// that a state update has occured
+	StateUpdate chan Collider = make(chan Collider, 1000)
 
 	// Collision is used to offer a way to communicate collision between two ObjectId across NetObjects
 	// map indexed by ObjectId, the collisioned ObjectId is pushed into the channel
@@ -46,8 +50,6 @@ func Start() {
 	State[f.Object.ObjectId] = &food{Object: f.Object}
 	StatesMtx.Unlock()
 	f.Init()
-	Update(update)
-
 	// Spawn animals
 	StatesMtx.Lock()
 	/*
@@ -58,8 +60,9 @@ func Start() {
 			}
 		}
 	*/
-	for i := 0; i < 1; i++ {
-		a := NewAnimal(f.Object, erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50})
+	for i := 0; i < 5; i++ {
+		a := NewAnimal(*f.Object.Position, erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50})
+		EventDispatcher.Add(a)
 		State[a.Object.ObjectId] = &animal{Object: a.Object}
 
 		Broadcast <- erutan.Packet{
@@ -73,7 +76,7 @@ func Start() {
 		a.Init()
 	}
 	StatesMtx.Unlock()
-	go handleMovements()
+	go handleStateUpdates()
 }
 
 // WorldState return the current world state
@@ -96,34 +99,37 @@ func WorldState() []*erutan.Packet {
 	return packets
 }
 
-func update(deltaTime int64) {
-
-}
-
-func handleMovements() {
+func handleStateUpdates() {
 	for {
 		select {
-		case movedObjectID := <-Movement:
+		case s := <-StateUpdate:
 			StatesMtx.Lock()
-			// DebugLogf("%v moved to %v", movedObjectID, State[movedObjectID].Position)
-			checkCollisions(movedObjectID)
+			//DebugLogf("%v moved to %v", s.GetObject().ObjectId, s.GetObject().Position)
+			State[s.GetObject().ObjectId] = s
+
+			/*
+				switch v := State[movedObjectID].(type) {
+				case *food:
+				}
+			*/
+			checkCollisions(s)
 			StatesMtx.Unlock()
 		}
 	}
 }
 
-func checkCollisions(movedObjectID string) {
-	a := State[movedObjectID]
+func checkCollisions(collider Collider) {
 	for _, element := range State {
-		if element.GetObject().ObjectId == movedObjectID {
+		if element.GetObject().ObjectId == collider.GetObject().ObjectId {
 			continue
 		}
 		//DebugLogf("Distance %v", Distance(*a.GetObject().Position, *element.GetObject().Position))
-		if Distance(*a.GetObject().Position, *element.GetObject().Position) < 5 {
+		if Distance(*collider.GetObject().Position, *element.GetObject().Position) < 5 {
 			//DebugLogf("Collision a: %v, b: %v", a.GetObject().ObjectId, element.GetObject().ObjectId)
 			// Notify both objects of a collision !
-			a.OnCollisionEnter(element.GetObject().ObjectId)
-			element.OnCollisionEnter(a.GetObject().ObjectId)
+			// Eventually run it in goroutine?
+			collider.OnCollisionEnter(element)
+			element.OnCollisionEnter(collider)
 		}
 	}
 }

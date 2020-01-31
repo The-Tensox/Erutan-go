@@ -1,18 +1,20 @@
 package main
 
 import (
+	"time"
+
 	"github.com/golang/protobuf/ptypes"
 	erutan "github.com/user/erutan_two/protos/realtime"
 )
 
 type animal struct {
 	Object           *erutan.NetObject
-	Target           *erutan.NetObject
+	Target           erutan.NetVector3
 	previousPosition erutan.NetVector3
 }
 
 // NewAnimal instanciate an animal
-func NewAnimal(food erutan.NetObject, position erutan.NetVector3) *animal {
+func NewAnimal(target erutan.NetVector3, position erutan.NetVector3) *animal {
 	return &animal{
 		Object: &erutan.NetObject{
 			ObjectId: RandomString(),
@@ -23,20 +25,18 @@ func NewAnimal(food erutan.NetObject, position erutan.NetVector3) *animal {
 			Type:     erutan.NetObject_ANIMAL,
 			Components: []*erutan.Component{&erutan.Component{
 				Type: &erutan.Component_Animal{Animal: &erutan.Component_AnimalComponent{
-					Life:   20,
-					Food:   &food,
-					Target: &food,
+					Life: 20,
 				}}},
 			},
 		},
-		Target:           &food,
+		Target:           target,
 		previousPosition: position,
 	}
 }
 
 func (a *animal) Init() {
-	Update(func(timeDelta int64) {
-		StatesMtx.Lock()
+	Update(func(timeDelta int64) bool {
+		//StatesMtx.Lock()
 		/*
 			r := LookAtTwo(*a.Object.Position, *a.Target.Position)[3]
 			yaw, pitch, roll := r[0], r[1], r[2]
@@ -44,17 +44,28 @@ func (a *animal) Init() {
 			State[a.Object.ObjectId].Rotation = &finalRotation
 		*/
 
-		distance := Distance(*a.Object.Position, *a.Target.Position)
-		position := Add(*a.Object.Position, Div(Sub(*a.Target.Position, *a.Object.Position) /*float64(timeDelta) */, distance*10))
-		State[a.Object.ObjectId].GetObject().Position = &position
-		//DebugLogf("yep %v", position)
-		StatesMtx.Unlock()
+		distance := Distance(*a.Object.Position, a.Target)
+		*a.Object.Position = Add(*a.Object.Position, Div(Sub(a.Target, *a.Object.Position) /*float64(timeDelta) */, distance*10))
+		//State[a.Object.ObjectId].GetObject().Position = &position
+		//DebugLogf("yep %v %v", a.Object.Position, a.Target)
+		//StatesMtx.Unlock()
 
 		// Let's not spam collisions check !
-		if Distance(position, a.previousPosition) > 3 { // TODO: tweak the threshold
-			a.previousPosition = *State[a.Object.ObjectId].GetObject().Position
-			Movement <- a.Object.ObjectId
+		//if Distance(position, a.previousPosition) > 3 { // TODO: tweak the threshold
+		//a.previousPosition = *a.GetObject().Position
+		//a.Object.Position = &position
+		var l float64
+
+		for _, element := range a.Object.Components {
+			switch c := element.Type.(type) {
+			case *erutan.Component_Animal:
+				c.Animal.Life -= 0.01
+				l = c.Animal.Life
+			}
 		}
+
+		StateUpdate <- a
+		//}
 
 		/*
 			Broadcast <- erutan.Packet{
@@ -72,15 +83,60 @@ func (a *animal) Init() {
 			Type: &erutan.Packet_UpdatePosition{
 				UpdatePosition: &erutan.Packet_UpdatePositionPacket{
 					ObjectId: a.Object.ObjectId,
-					Position: &position,
+					Position: a.Object.Position,
 				},
 			},
 		}
+		Broadcast <- erutan.Packet{
+			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+			Type: &erutan.Packet_UpdateAnimal{
+				UpdateAnimal: &erutan.Packet_UpdateAnimalPacket{
+					ObjectId: a.Object.ObjectId,
+					Life:     l,
+				},
+			},
+		}
+
+		if l <= 0 {
+			return true // Dead
+		}
+		return false
 	})
 }
 
 func (a *animal) GetObject() *erutan.NetObject { return a.Object }
 
-func (a *animal) OnCollisionEnter(collisionedObjectID string) {
-	DebugLogf("I %v got collisioned with %v", a.Object.ObjectId, collisionedObjectID)
+func (a *animal) OnCollisionEnter(other Collider) {
+	// If we collided with food ++ life
+	if _, ok := other.(*food); ok {
+
+		var l float64
+		for _, element := range a.GetObject().Components {
+			if _, ok := element.Type.(*erutan.Component_Animal); ok {
+				element.GetAnimal().Life += 20
+				l = element.GetAnimal().Life
+			}
+		}
+
+		Broadcast <- erutan.Packet{
+			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+			Type: &erutan.Packet_UpdateAnimal{
+				UpdateAnimal: &erutan.Packet_UpdateAnimalPacket{
+					ObjectId: a.GetObject().ObjectId,
+					Life:     l,
+				},
+			},
+		}
+	}
+}
+
+// NotifyCallback implements Observer
+func (a *animal) NotifyCallback(event Event) {
+	switch event.eventID {
+	case FoodMoved:
+		//DebugLogf("food moved to %v", event.value)
+		a.Target = event.value.(erutan.NetVector3)
+	default:
+		ServerLogf(time.Now(), "Unknown event type occured %v", event.eventID)
+	}
 }
