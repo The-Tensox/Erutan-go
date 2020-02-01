@@ -1,5 +1,7 @@
 
-# Grpc_push
+# Erutan-go
+
+# WIP - no clear instructions yet
 
 ```bash
 protoc -I protos/realtime --go_out=plugins=grpc:protos/realtime protos/realtime/realtime.proto

@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/ptypes"
-	erutan "github.com/user/erutan_two/protos/realtime"
-	utils "github.com/user/erutan_two/utils"
+	erutan "github.com/user/erutan/protos/realtime"
+	utils "github.com/user/erutan/utils"
 )
 
 var once sync.Once
@@ -69,17 +69,8 @@ func (g *GameManager) RunGame() {
 	f.Start()
 	// Spawn animals
 	g.StatesMtx.Lock()
-	/*
-		var food erutan.NetObject
-		for _, element := range State {
-			if element.Type == erutan.NetObject_FOOD {
-				food = *element
-			}
-		}
-	*/
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 10; i++ {
 		a := NewAnimal(f.AbstractBehaviour.Object.ObjectId, erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50})
-		//EventDispatcher.Add(a)
 		g.State[a.AbstractBehaviour.Object.ObjectId] = a.AbstractBehaviour
 
 		g.Broadcast <- erutan.Packet{

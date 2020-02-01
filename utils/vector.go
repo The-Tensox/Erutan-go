@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	erutan "github.com/user/erutan_two/protos/realtime"
+	erutan "github.com/user/erutan/protos/realtime"
 )
 
 // ApproxEqual reports whether a and b are equal within a small epsilon.

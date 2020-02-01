@@ -3,8 +3,8 @@ package game
 import (
 	"time"
 
-	erutan "github.com/user/erutan_two/protos/realtime"
-	"github.com/user/erutan_two/utils"
+	erutan "github.com/user/erutan/protos/realtime"
+	"github.com/user/erutan/utils"
 )
 
 // Behaviour gives the base of what any object should be able to do

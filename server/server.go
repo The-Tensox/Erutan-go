@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/user/erutan_two/game"
-	erutan "github.com/user/erutan_two/protos/realtime"
-	"github.com/user/erutan_two/utils"
+	"github.com/user/erutan/game"
+	erutan "github.com/user/erutan/protos/realtime"
+	"github.com/user/erutan/utils"
 
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"

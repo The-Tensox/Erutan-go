@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	server "github.com/user/erutan_two/server"
-	utils "github.com/user/erutan_two/utils"
+	server "github.com/user/erutan/server"
+	utils "github.com/user/erutan/utils"
 	"golang.org/x/net/context"
 )
 

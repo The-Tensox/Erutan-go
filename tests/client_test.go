@@ -6,8 +6,8 @@ import (
 	"log"
 	"testing"
 
-	main "github.com/user/erutan_two"
-	erutan "github.com/user/erutan_two/protos/realtime"
+	main "github.com/user/erutan"
+	erutan "github.com/user/erutan/protos/realtime"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/oauth"
