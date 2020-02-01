@@ -34,7 +34,7 @@ func RunMain() {
 	ctx := SignalContext(context.Background())
 	var err error
 
-	err = Server(host, password).Run(ctx)
+	err = NewServer(host, password).Run(ctx)
 
 	if err != nil {
 		MessageLog(time.Now(), "<<Process>>", err.Error())

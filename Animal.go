@@ -1,22 +1,20 @@
 package main
 
 import (
-	"time"
-
 	"github.com/golang/protobuf/ptypes"
 	erutan "github.com/user/erutan_two/protos/realtime"
 )
 
-type animal struct {
-	Object           *erutan.NetObject
-	Target           erutan.NetVector3
+type Animal struct {
+	*AbstractBehaviour
+	Target           string
 	previousPosition erutan.NetVector3
 }
 
 // NewAnimal instanciate an animal
-func NewAnimal(target erutan.NetVector3, position erutan.NetVector3) *animal {
-	return &animal{
-		Object: &erutan.NetObject{
+func NewAnimal(target string, position erutan.NetVector3) *Animal {
+	b := &AbstractBehaviour{
+		Object: erutan.NetObject{
 			ObjectId: RandomString(),
 			OwnerId:  "server",
 			Position: &position,
@@ -29,13 +27,27 @@ func NewAnimal(target erutan.NetVector3, position erutan.NetVector3) *animal {
 				}}},
 			},
 		},
-		Target:           target,
-		previousPosition: position,
 	}
+	a := &Animal{
+		AbstractBehaviour: b,
+		Target:            target,
+		previousPosition:  position,
+	}
+	a.Behaviour = a
+	return a
 }
 
-func (a *animal) Init() {
-	Update(func(timeDelta int64) bool {
+// Start is used to initialize your object
+func (a *Animal) Start() {
+	a.Update()
+}
+
+// Update is used to handle this object life loop
+func (a *Animal) Update() {
+	Update(func(deltaTime int64) bool {
+		StatesMtx.RLock()
+		target := State[a.Target].Object.Position
+		StatesMtx.RUnlock()
 		//StatesMtx.Lock()
 		/*
 			r := LookAtTwo(*a.Object.Position, *a.Target.Position)[3]
@@ -44,8 +56,9 @@ func (a *animal) Init() {
 			State[a.Object.ObjectId].Rotation = &finalRotation
 		*/
 
-		distance := Distance(*a.Object.Position, a.Target)
-		*a.Object.Position = Add(*a.Object.Position, Div(Sub(a.Target, *a.Object.Position) /*float64(timeDelta) */, distance*10))
+		distance := Distance(*a.AbstractBehaviour.Object.Position, *target)
+		*a.AbstractBehaviour.Object.Position = Add(*a.AbstractBehaviour.Object.Position,
+			Div(Sub(*target, *a.AbstractBehaviour.Object.Position) /*float64(timeDelta) */, distance*10))
 		//State[a.Object.ObjectId].GetObject().Position = &position
 		//DebugLogf("yep %v %v", a.Object.Position, a.Target)
 		//StatesMtx.Unlock()
@@ -56,7 +69,7 @@ func (a *animal) Init() {
 		//a.Object.Position = &position
 		var l float64
 
-		for _, element := range a.Object.Components {
+		for _, element := range a.AbstractBehaviour.Object.Components {
 			switch c := element.Type.(type) {
 			case *erutan.Component_Animal:
 				c.Animal.Life -= 0.01
@@ -64,7 +77,7 @@ func (a *animal) Init() {
 			}
 		}
 
-		StateUpdate <- a
+		StateUpdate <- a.AbstractBehaviour
 		//}
 
 		/*
@@ -82,8 +95,8 @@ func (a *animal) Init() {
 			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 			Type: &erutan.Packet_UpdatePosition{
 				UpdatePosition: &erutan.Packet_UpdatePositionPacket{
-					ObjectId: a.Object.ObjectId,
-					Position: a.Object.Position,
+					ObjectId: a.AbstractBehaviour.Object.ObjectId,
+					Position: a.AbstractBehaviour.Object.Position,
 				},
 			},
 		}
@@ -91,7 +104,7 @@ func (a *animal) Init() {
 			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 			Type: &erutan.Packet_UpdateAnimal{
 				UpdateAnimal: &erutan.Packet_UpdateAnimalPacket{
-					ObjectId: a.Object.ObjectId,
+					ObjectId: a.AbstractBehaviour.Object.ObjectId,
 					Life:     l,
 				},
 			},
@@ -104,14 +117,12 @@ func (a *animal) Init() {
 	})
 }
 
-func (a *animal) GetObject() *erutan.NetObject { return a.Object }
-
-func (a *animal) OnCollisionEnter(other Collider) {
+func (a *Animal) OnCollisionEnter(other erutan.NetObject) {
 	// If we collided with food ++ life
-	if _, ok := other.(*food); ok {
+	if other.Type == erutan.NetObject_FOOD {
 
 		var l float64
-		for _, element := range a.GetObject().Components {
+		for _, element := range a.AbstractBehaviour.Object.Components {
 			if _, ok := element.Type.(*erutan.Component_Animal); ok {
 				element.GetAnimal().Life += 20
 				l = element.GetAnimal().Life
@@ -122,7 +133,7 @@ func (a *animal) OnCollisionEnter(other Collider) {
 			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 			Type: &erutan.Packet_UpdateAnimal{
 				UpdateAnimal: &erutan.Packet_UpdateAnimalPacket{
-					ObjectId: a.GetObject().ObjectId,
+					ObjectId: a.AbstractBehaviour.Object.ObjectId,
 					Life:     l,
 				},
 			},
@@ -130,13 +141,18 @@ func (a *animal) OnCollisionEnter(other Collider) {
 	}
 }
 
+/*
 // NotifyCallback implements Observer
-func (a *animal) NotifyCallback(event Event) {
+func (a *Animal) NotifyCallback(event Event) {
 	switch event.eventID {
 	case FoodMoved:
-		//DebugLogf("food moved to %v", event.value)
+		DebugLogf("food moved to %v", event.value)
 		a.Target = event.value.(erutan.NetVector3)
 	default:
 		ServerLogf(time.Now(), "Unknown event type occured %v", event.eventID)
 	}
 }
+*/
+
+// OnDestroy is called before getting destroyed
+func (a *Animal) OnDestroy() {}

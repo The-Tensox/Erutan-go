@@ -7,13 +7,13 @@ import (
 	erutan "github.com/user/erutan_two/protos/realtime"
 )
 
-type food struct {
-	Object erutan.NetObject
+type Food struct {
+	*AbstractBehaviour
 }
 
 // NewFood instanciate a food
-func NewFood(position erutan.NetVector3) *food {
-	return &food{
+func NewFood(position erutan.NetVector3) *Food {
+	b := &AbstractBehaviour{
 		Object: erutan.NetObject{
 			ObjectId:   RandomString(),
 			OwnerId:    "server",
@@ -24,26 +24,36 @@ func NewFood(position erutan.NetVector3) *food {
 			Components: []*erutan.Component{},
 		},
 	}
+	f := &Food{b}
+	f.Behaviour = f
+	return f
 }
 
-func (f *food) Init() {
+// Start is used to initialize your object
+func (f *Food) Start() {
+	f.Update()
 }
 
-func (f *food) GetObject() *erutan.NetObject { return &f.Object }
+// Update is used to handle this object life loop
+func (f *Food) Update() {
+	Update(func(deltaTime int64) bool {
+		return true
+	})
+}
 
-func (f *food) OnCollisionEnter(other Collider) {
+func (f *Food) OnCollisionEnter(other erutan.NetObject) {
 	// If we collided with animal
-	if _, ok := other.(*animal); ok {
-		f.GetObject().Position = &erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50}
-		EventDispatcher.Notify(Event{eventID: FoodMoved, value: *f.GetObject().Position})
-
-		StateUpdate <- f
+	if other.Type == erutan.NetObject_ANIMAL {
+		f.AbstractBehaviour.Object.Position = &erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50}
+		//EventDispatcher.Notify(Event{eventID: FoodMoved, value: *f.AbstractBehaviour.Object.Position})
+		DebugLogf("%v", f.AbstractBehaviour.Object.Position)
+		StateUpdate <- f.AbstractBehaviour
 		Broadcast <- erutan.Packet{
 			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 			Type: &erutan.Packet_UpdatePosition{
 				UpdatePosition: &erutan.Packet_UpdatePositionPacket{
-					ObjectId: f.Object.ObjectId,
-					Position: f.GetObject().Position,
+					ObjectId: f.AbstractBehaviour.Object.ObjectId,
+					Position: f.AbstractBehaviour.Object.Position,
 				},
 			},
 		}
@@ -60,3 +70,6 @@ func (f *food) OnCollisionEnter(other Collider) {
 		*/
 	}
 }
+
+// OnDestroy is called before getting destroyed
+func (f *Food) OnDestroy() {}

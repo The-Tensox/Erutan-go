@@ -29,11 +29,11 @@ var (
 	// Broadcast is a global channel to send packets to clients
 	Broadcast chan erutan.Packet = make(chan erutan.Packet, 1000)
 
-	// TickRate defines the server's tick rate, the lower the faster
-	TickRate float32 = 35
+	// TickRate defines the Server's tick rate, the lower the faster
+	TickRate float64 = 35
 )
 
-type server struct {
+type Server struct {
 	Host, Password string
 
 	ClientNames   map[string]string
@@ -42,9 +42,9 @@ type server struct {
 	namesMtx, streamsMtx sync.RWMutex
 }
 
-// Server constructor
-func Server(host, pass string) *server {
-	return &server{
+// NewServer constructor
+func NewServer(host, pass string) *Server {
+	return &Server{
 		Host:     host,
 		Password: pass,
 
@@ -53,7 +53,7 @@ func Server(host, pass string) *server {
 	}
 }
 
-func (s *server) Run(ctx context.Context) error {
+func (s *Server) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -92,7 +92,7 @@ func (s *server) Run(ctx context.Context) error {
 
 	go s.broadcast(ctx)
 
-	go Start()
+	go RunGame()
 
 	go func() {
 		srv.Serve(l)
@@ -108,7 +108,7 @@ func (s *server) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) Stream(srv erutan.Erutan_StreamServer) error {
+func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 	tkn := RandomString()
 	go s.sendBroadcasts(srv, tkn)
 	for {
@@ -134,7 +134,7 @@ func (s *server) Stream(srv erutan.Erutan_StreamServer) error {
 	return srv.Context().Err()
 }
 
-func (s *server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
+func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	stream := s.openStream(tkn)
 	defer s.closeStream(tkn)
 
@@ -164,7 +164,7 @@ func (s *server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	}
 }
 
-func (s *server) broadcast(ctx context.Context) {
+func (s *Server) broadcast(ctx context.Context) {
 	for res := range Broadcast {
 		s.streamsMtx.RLock()
 		for _, stream := range s.ClientStreams {
@@ -179,7 +179,7 @@ func (s *server) broadcast(ctx context.Context) {
 	}
 }
 
-func (s *server) openStream(tkn string) (stream chan erutan.Packet) {
+func (s *Server) openStream(tkn string) (stream chan erutan.Packet) {
 	stream = make(chan erutan.Packet, 100)
 
 	s.streamsMtx.Lock()
@@ -191,7 +191,7 @@ func (s *server) openStream(tkn string) (stream chan erutan.Packet) {
 	return
 }
 
-func (s *server) closeStream(tkn string) {
+func (s *Server) closeStream(tkn string) {
 	s.streamsMtx.Lock()
 
 	if stream, ok := s.ClientStreams[tkn]; ok {
@@ -204,20 +204,20 @@ func (s *server) closeStream(tkn string) {
 	s.streamsMtx.Unlock()
 }
 
-func (s *server) getName(tkn string) (name string, ok bool) {
+func (s *Server) getName(tkn string) (name string, ok bool) {
 	s.namesMtx.RLock()
 	name, ok = s.ClientNames[tkn]
 	s.namesMtx.RUnlock()
 	return
 }
 
-func (s *server) setName(tkn string, name string) {
+func (s *Server) setName(tkn string, name string) {
 	s.namesMtx.Lock()
 	s.ClientNames[tkn] = name
 	s.namesMtx.Unlock()
 }
 
-func (s *server) delName(tkn string) (name string, ok bool) {
+func (s *Server) delName(tkn string) (name string, ok bool) {
 	name, ok = s.getName(tkn)
 
 	if ok {
@@ -261,7 +261,7 @@ func ensureValidToken(ctx context.Context, req interface{}, info *grpc.UnaryServ
 
 func streamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 
-	/*s, _ := srv.(*server)
+	/*s, _ := srv.(*Server)
 
 	s.streamsMtx.Lock()
 

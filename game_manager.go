@@ -14,14 +14,14 @@ var (
 	EventDispatcher Watch = Watch{}
 
 	// State is used to store the world state
-	State map[string]Collider = make(map[string]Collider)
+	State map[string]*AbstractBehaviour = make(map[string]*AbstractBehaviour)
 
 	// StatesMtx is used to ensure safe concurrency on the State map
 	StatesMtx sync.RWMutex
 
 	// StateUpdate is a global event to notify gameplay manager
 	// that a state update has occured
-	StateUpdate chan Collider = make(chan Collider, 1000)
+	StateUpdate chan *AbstractBehaviour = make(chan *AbstractBehaviour, 1000)
 
 	// Collision is used to offer a way to communicate collision between two ObjectId across NetObjects
 	// map indexed by ObjectId, the collisioned ObjectId is pushed into the channel
@@ -31,8 +31,8 @@ var (
 	CollisionMtx sync.RWMutex
 )
 
-// Start start handling gameplay
-func Start() {
+// RunGame start handling gameplay
+func RunGame() {
 	StatesMtx.Lock()
 	// Spawn ground
 	ground := erutan.NetObject{
@@ -43,13 +43,13 @@ func Start() {
 		Scale:    &erutan.NetVector3{X: 100, Y: 1, Z: 100},
 		Type:     erutan.NetObject_GROUND,
 	}
-	State[ground.ObjectId] = &ObjectBehaviour{Object: ground}
+	State[ground.ObjectId] = &AbstractBehaviour{Object: ground}
 
 	// Spawn food
 	f := NewFood(erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50})
-	State[f.Object.ObjectId] = &food{Object: f.Object}
+	State[f.AbstractBehaviour.Object.ObjectId] = f.AbstractBehaviour
 	StatesMtx.Unlock()
-	f.Init()
+	f.Start()
 	// Spawn animals
 	StatesMtx.Lock()
 	/*
@@ -60,20 +60,20 @@ func Start() {
 			}
 		}
 	*/
-	for i := 0; i < 5; i++ {
-		a := NewAnimal(*f.Object.Position, erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50})
-		EventDispatcher.Add(a)
-		State[a.Object.ObjectId] = &animal{Object: a.Object}
+	for i := 0; i < 1; i++ {
+		a := NewAnimal(f.AbstractBehaviour.Object.ObjectId, erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50})
+		//EventDispatcher.Add(a)
+		State[a.AbstractBehaviour.Object.ObjectId] = a.AbstractBehaviour
 
 		Broadcast <- erutan.Packet{
 			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 			Type: &erutan.Packet_CreateObject{
 				CreateObject: &erutan.Packet_CreateObjectPacket{
-					Object: a.Object,
+					Object: &a.AbstractBehaviour.Object,
 				},
 			},
 		}
-		a.Init()
+		a.Start()
 	}
 	StatesMtx.Unlock()
 	go handleStateUpdates()
@@ -89,7 +89,7 @@ func WorldState() []*erutan.Packet {
 			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 			Type: &erutan.Packet_CreateObject{
 				CreateObject: &erutan.Packet_CreateObjectPacket{
-					Object: element.GetObject(),
+					Object: &element.Object,
 				},
 			},
 		})
@@ -105,31 +105,25 @@ func handleStateUpdates() {
 		case s := <-StateUpdate:
 			StatesMtx.Lock()
 			//DebugLogf("%v moved to %v", s.GetObject().ObjectId, s.GetObject().Position)
-			State[s.GetObject().ObjectId] = s
-
-			/*
-				switch v := State[movedObjectID].(type) {
-				case *food:
-				}
-			*/
-			checkCollisions(s)
+			State[s.Object.ObjectId] = s
+			checkCollisions(*s)
 			StatesMtx.Unlock()
 		}
 	}
 }
 
-func checkCollisions(collider Collider) {
+func checkCollisions(collider AbstractBehaviour) {
 	for _, element := range State {
-		if element.GetObject().ObjectId == collider.GetObject().ObjectId {
+		if element.Object.ObjectId == collider.Object.ObjectId {
 			continue
 		}
-		//DebugLogf("Distance %v", Distance(*a.GetObject().Position, *element.GetObject().Position))
-		if Distance(*collider.GetObject().Position, *element.GetObject().Position) < 5 {
-			//DebugLogf("Collision a: %v, b: %v", a.GetObject().ObjectId, element.GetObject().ObjectId)
+		//DebugLogf("Distance %v", Distance(*collider.Object.Position, *element.Object.Position))
+		if Distance(*collider.Object.Position, *element.Object.Position) < 5 {
+			//DebugLogf("Collision a: %v, b: %v", collider.Object, element.Object)
 			// Notify both objects of a collision !
 			// Eventually run it in goroutine?
-			collider.OnCollisionEnter(element)
-			element.OnCollisionEnter(collider)
+			collider.Behaviour.OnCollisionEnter(element.Object)
+			element.Behaviour.OnCollisionEnter(collider.Object)
 		}
 	}
 }

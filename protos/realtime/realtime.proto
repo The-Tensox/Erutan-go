@@ -73,16 +73,20 @@ message Packet {
     Metadata metadata = 1;
 
     oneof type {
+        // General physical objects
         CreateObjectPacket create_object = 2;
         UpdatePositionPacket update_position = 3;
         UpdateRotationPacket update_rotation = 4;
         DestroyObjectPacket destroy_object = 5;
 
+        // Animals & Environment
         FoodEatenPacket food_eaten = 6;
         UpdateAnimalPacket update_animal = 7;
+
+        // Server general parameters
+
     }
 
-    // General physical objects
     message CreateObjectPacket {
         NetObject object = 1; 
     }
@@ -101,8 +105,6 @@ message Packet {
         string object_id = 1;
     }
 
-    // Animals & Environment
-
     // Occurs when an animal hit a food -> gain life, food disappear ...
     message FoodEatenPacket { // Idk about this packet, maybe for eating animations ...
         string food_id = 1; // I guess will be useful in the future with several foods
@@ -112,5 +114,17 @@ message Packet {
     message UpdateAnimalPacket { // Maybe will have more params later
         string object_id = 1;
         double life = 2;
+    }
+
+    message UpdateParametersPacket {
+        repeated Parameter parameters = 1;
+        message Parameter {
+            oneof type {
+                TickrateParameter tickrate_parameter = 1;
+            }
+            message TickrateParameter {
+                double tick_rate = 1;
+            }
+        }
     }
 }
