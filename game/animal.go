@@ -46,6 +46,7 @@ func (a *Animal) Start() {
 // Update is used to handle this object life loop
 func (a *Animal) Update() {
 	utils.Update(func(deltaTime int64) bool {
+		//utils.DebugLogf("%v", utils.Config.TickRate)
 		GameManagerInstance.StatesMtx.RLock()
 		target := GameManagerInstance.State[a.Target].Object.Position
 		GameManagerInstance.StatesMtx.RUnlock()
@@ -59,7 +60,7 @@ func (a *Animal) Update() {
 
 		distance := utils.Distance(*a.AbstractBehaviour.Object.Position, *target)
 		*a.AbstractBehaviour.Object.Position = utils.Add(*a.AbstractBehaviour.Object.Position,
-			utils.Div(utils.Sub(*target, *a.AbstractBehaviour.Object.Position) /*float64(timeDelta) */, distance*10))
+			utils.Div(utils.Sub(*target, *a.AbstractBehaviour.Object.Position) /*float64(deltaTime)**/, distance*10))
 
 		var l float64
 

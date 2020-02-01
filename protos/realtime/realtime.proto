@@ -84,7 +84,7 @@ message Packet {
         UpdateAnimalPacket update_animal = 7;
 
         // Server general parameters
-
+        UpdateParametersPacket update_parameters = 8;
     }
 
     message CreateObjectPacket {
@@ -120,10 +120,7 @@ message Packet {
         repeated Parameter parameters = 1;
         message Parameter {
             oneof type {
-                TickrateParameter tickrate_parameter = 1;
-            }
-            message TickrateParameter {
-                double tick_rate = 1;
+                double tickrate = 1;
             }
         }
     }

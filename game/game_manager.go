@@ -31,6 +31,9 @@ type GameManager struct {
 
 	// CollisionMtx is used to ensure safe concurrency on the Collision map
 	CollisionMtx sync.RWMutex
+
+	// Receive receive packets from clients
+	Receive chan *erutan.Packet
 }
 
 var GameManagerInstance *GameManager
@@ -42,14 +45,16 @@ func InitializeGame() {
 			&GameManager{
 				Broadcast:   make(chan erutan.Packet, 1000),
 				State:       make(map[string]*AbstractBehaviour),
-				StateUpdate: make(chan *AbstractBehaviour, 1000),
+				StateUpdate: make(chan *AbstractBehaviour, 1000), // TODO: maybe shouldnt be buffered ...
 				Collision:   make(map[string]chan string, 1000),
+				Receive:     make(chan *erutan.Packet, 1000),
 			}
 	})
 }
 
 // RunGame start handling gameplay
 func (g *GameManager) RunGame() {
+	go g.handleClientPackets()
 	g.StatesMtx.Lock()
 	// Spawn ground
 	ground := erutan.NetObject{
@@ -69,7 +74,7 @@ func (g *GameManager) RunGame() {
 	f.Start()
 	// Spawn animals
 	g.StatesMtx.Lock()
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		a := NewAnimal(f.AbstractBehaviour.Object.ObjectId, erutan.NetVector3{X: rand.Float64() * 50, Y: 1, Z: rand.Float64() * 50})
 		g.State[a.AbstractBehaviour.Object.ObjectId] = a.AbstractBehaviour
 
@@ -105,6 +110,50 @@ func (g *GameManager) WorldState() []*erutan.Packet {
 
 	g.StatesMtx.RUnlock()
 	return packets
+}
+
+func (g *GameManager) handleClientPackets() {
+	for {
+		select {
+		case p := <-g.Receive:
+			// TODO: handle client messages here
+			switch t := p.Type.(type) {
+			case *erutan.Packet_UpdateParameters:
+				for _, element := range t.UpdateParameters.Parameters {
+					switch param := element.Type.(type) {
+					case *erutan.Packet_UpdateParametersPacket_Parameter_Tickrate:
+						utils.Config.TickRate = param.Tickrate
+					}
+				}
+			case *erutan.Packet_CreateObject:
+				var o *AbstractBehaviour
+				g.StatesMtx.Lock()
+				switch t.CreateObject.Object.Type {
+				case erutan.NetObject_ANIMAL:
+					// Find a target (first found, TODO: nearest, w/e)
+					for _, e := range g.State {
+						if f, ok := e.Behaviour.(*Food); ok {
+							o = NewAnimal(f.Object.ObjectId, *t.CreateObject.Object.Position).AbstractBehaviour
+						}
+					}
+				}
+				g.State[o.Object.ObjectId] = o
+				g.StatesMtx.Unlock()
+				g.Broadcast <- erutan.Packet{
+					Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+					Type: &erutan.Packet_CreateObject{
+						CreateObject: &erutan.Packet_CreateObjectPacket{
+							Object: &o.Object,
+						},
+					},
+				}
+				o.Start()
+
+			default:
+				utils.DebugLogf("Client sent unimplemented packet: %v", t)
+			}
+		}
+	}
 }
 
 func (g *GameManager) handleStateUpdates() {

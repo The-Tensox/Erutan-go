@@ -82,7 +82,7 @@ func (s *Server) Run(ctx context.Context) error {
 		return err
 	}
 
-	utils.ServerLogf(time.Now(), "Server started")
+	utils.ServerLogf(time.Now(), "Server started with config: %+v", utils.Config)
 
 	game.InitializeGame()
 	go s.broadcast(ctx)
@@ -113,15 +113,11 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 			return err
 		}
 		utils.DebugLogf("client send: %v", req)
-		// TODO: handle client messages here
-		/*
-			switch t := req.Type.(type) {
-			case *erutan.ClientToServer_UpdatePosition:
-				s.updatePosition(req.GetUpdatePosition())
-			default:
-				utils.DebugLogf("client send: unimplemented packet handler: %v", t)
-			}
-		*/
+
+		srv.Send(req)
+
+		// Distribute to the game manager to handle logic
+		game.GameManagerInstance.Receive <- req
 	}
 
 	<-srv.Context().Done()

@@ -17,8 +17,8 @@ func init() {
 }
 
 func flags() {
-	flag.BoolVar(&utils.Config.DebugMode, "v", false, "enable debug logging")
-	flag.StringVar(&utils.Config.Host, "h", "0.0.0.0:50051", "the chat server's host")
+	flag.BoolVar(&utils.Config.DebugMode, "d", false, "enable debug logging")
+	flag.StringVar(&utils.Config.Host, "h", "0.0.0.0:50051", "the server's host")
 	flag.Parse()
 	rand.Seed(time.Now().UnixNano())
 	log.SetFlags(0)
