@@ -22,5 +22,5 @@ openssl req -new -x509 -sha256 -key server1.key \
 
 export GRPC_VERBOSITY=INFO
 cp server1.crt ~/Documents/unity/Erutan/Assets/StreamingAssets
-go build -o ./bin/erutan && bin/erutan -v -p "" -h "0.0.0.0:50051"
+go build -o ./bin/erutan && bin/erutan -v -h "0.0.0.0:50051"
 ```

@@ -7,13 +7,9 @@ import (
 	"os"
 	"time"
 
+	server "github.com/user/erutan_two/server"
+	utils "github.com/user/erutan_two/utils"
 	"golang.org/x/net/context"
-)
-
-var (
-	debugMode bool
-	host      string
-	password  string
 )
 
 func init() {
@@ -21,9 +17,8 @@ func init() {
 }
 
 func flags() {
-	flag.BoolVar(&debugMode, "v", false, "enable debug logging")
-	flag.StringVar(&host, "h", "0.0.0.0:50051", "the chat server's host")
-	flag.StringVar(&password, "p", "", "the chat server's password")
+	flag.BoolVar(&utils.Config.DebugMode, "v", false, "enable debug logging")
+	flag.StringVar(&utils.Config.Host, "h", "0.0.0.0:50051", "the chat server's host")
 	flag.Parse()
 	rand.Seed(time.Now().UnixNano())
 	log.SetFlags(0)
@@ -31,18 +26,19 @@ func flags() {
 
 // RunMain starts the server and everything for prod, used in tests
 func RunMain() {
-	ctx := SignalContext(context.Background())
+	ctx := utils.SignalContext(context.Background())
 	var err error
 
-	err = NewServer(host, password).Run(ctx)
+	err = server.NewServer(utils.Config.Host).Run(ctx)
 
 	if err != nil {
-		MessageLog(time.Now(), "<<Process>>", err.Error())
+		utils.MessageLog(time.Now(), "<<Process>>", err.Error())
 		os.Exit(1)
 	}
 }
 
 func main() {
 	flags()
+	utils.InitializeConfig(35)
 	RunMain()
 }
