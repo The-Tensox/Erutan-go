@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/user/erutan/game"
@@ -21,8 +20,6 @@ import (
 	status "google.golang.org/grpc/status"
 )
 
-const tokenHeader = "x-token"
-
 var (
 	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
 	errInvalidToken    = status.Errorf(codes.Unauthenticated, "invalid token")
@@ -32,20 +29,12 @@ var (
 
 type Server struct {
 	Host string
-
-	ClientNames   map[string]string
-	ClientStreams map[string]chan erutan.Packet
-
-	namesMtx, streamsMtx sync.RWMutex
 }
 
 // NewServer constructor
 func NewServer(host string) *Server {
 	return &Server{
 		Host: host,
-
-		ClientNames:   make(map[string]string),
-		ClientStreams: make(map[string]chan erutan.Packet),
 	}
 }
 
@@ -84,9 +73,9 @@ func (s *Server) Run(ctx context.Context) error {
 
 	utils.ServerLogf(time.Now(), "Server started with config: %+v", utils.Config)
 
-	game.InitializeGame()
+	game.Initialize()
 	go s.broadcast(ctx)
-	go game.GameManagerInstance.RunGame()
+	go game.ManagerInstance.Run()
 
 	go func() {
 		srv.Serve(l)
@@ -95,7 +84,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 
-	close(game.GameManagerInstance.Broadcast)
+	close(game.ManagerInstance.Broadcast)
 	utils.ServerLogf(time.Now(), "shutting down")
 
 	srv.GracefulStop()
@@ -112,12 +101,9 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 		} else if err != nil {
 			return err
 		}
-		utils.DebugLogf("client send: %v", req)
-
-		srv.Send(req)
 
 		// Distribute to the game manager to handle logic
-		game.GameManagerInstance.Receive <- req
+		game.ManagerInstance.Receive <- req
 	}
 
 	<-srv.Context().Done()
@@ -129,15 +115,18 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	defer s.closeStream(tkn)
 
 	// Send world state (only) to the client that connected
-	for _, packet := range game.GameManagerInstance.WorldState() {
-		srv.Send(packet)
-	}
-
+	/*
+		for _, packet := range game.ManagerInstance.WorldState() {
+			srv.Send(packet)
+		}
+	*/
+	game.ManagerInstance.SyncNewClient(tkn)
 	for {
 		select {
 		case <-srv.Context().Done():
 			return
 		case res := <-stream:
+			utils.DebugLogf("Sending %v", res)
 			if s, ok := status.FromError(srv.Send(&res)); ok {
 				switch s.Code() {
 				case codes.OK:
@@ -155,9 +144,9 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 }
 
 func (s *Server) broadcast(ctx context.Context) {
-	for res := range game.GameManagerInstance.Broadcast {
-		s.streamsMtx.RLock()
-		for _, stream := range s.ClientStreams {
+	for res := range game.ManagerInstance.Broadcast {
+		game.ManagerInstance.StreamsMtx.RLock()
+		for _, stream := range game.ManagerInstance.ClientStreams {
 			select {
 			case stream <- res:
 				// noop
@@ -165,16 +154,16 @@ func (s *Server) broadcast(ctx context.Context) {
 				utils.ServerLogf(time.Now(), "client stream full, dropping message")
 			}
 		}
-		s.streamsMtx.RUnlock()
+		game.ManagerInstance.StreamsMtx.RUnlock()
 	}
 }
 
 func (s *Server) openStream(tkn string) (stream chan erutan.Packet) {
 	stream = make(chan erutan.Packet, 100)
 
-	s.streamsMtx.Lock()
-	s.ClientStreams[tkn] = stream
-	s.streamsMtx.Unlock()
+	game.ManagerInstance.StreamsMtx.Lock()
+	game.ManagerInstance.ClientStreams[tkn] = stream
+	game.ManagerInstance.StreamsMtx.Unlock()
 
 	utils.DebugLogf("opened stream for client %s", tkn)
 
@@ -182,38 +171,38 @@ func (s *Server) openStream(tkn string) (stream chan erutan.Packet) {
 }
 
 func (s *Server) closeStream(tkn string) {
-	s.streamsMtx.Lock()
+	game.ManagerInstance.StreamsMtx.Lock()
 
-	if stream, ok := s.ClientStreams[tkn]; ok {
-		delete(s.ClientStreams, tkn)
+	if stream, ok := game.ManagerInstance.ClientStreams[tkn]; ok {
+		delete(game.ManagerInstance.ClientStreams, tkn)
 		close(stream)
 	}
 
 	utils.DebugLogf("closed stream for client %s", tkn)
 
-	s.streamsMtx.Unlock()
+	game.ManagerInstance.StreamsMtx.Unlock()
 }
 
 func (s *Server) getName(tkn string) (name string, ok bool) {
-	s.namesMtx.RLock()
-	name, ok = s.ClientNames[tkn]
-	s.namesMtx.RUnlock()
+	game.ManagerInstance.NamesMtx.RLock()
+	name, ok = game.ManagerInstance.ClientNames[tkn]
+	game.ManagerInstance.NamesMtx.RUnlock()
 	return
 }
 
 func (s *Server) setName(tkn string, name string) {
-	s.namesMtx.Lock()
-	s.ClientNames[tkn] = name
-	s.namesMtx.Unlock()
+	game.ManagerInstance.NamesMtx.Lock()
+	game.ManagerInstance.ClientNames[tkn] = name
+	game.ManagerInstance.NamesMtx.Unlock()
 }
 
 func (s *Server) delName(tkn string) (name string, ok bool) {
 	name, ok = s.getName(tkn)
 
 	if ok {
-		s.namesMtx.Lock()
-		delete(s.ClientNames, tkn)
-		s.namesMtx.Unlock()
+		game.ManagerInstance.NamesMtx.Lock()
+		delete(game.ManagerInstance.ClientNames, tkn)
+		game.ManagerInstance.NamesMtx.Unlock()
 	}
 
 	return

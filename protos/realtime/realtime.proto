@@ -37,35 +37,38 @@ message NetQuaternion {
     double w = 4;
 }
 
-// TODO: parent ...
-message NetObject {
-    string object_id = 1;
-    string owner_id = 2;
-    NetVector3 position = 3;
-    NetQuaternion rotation = 4;
-    NetVector3 scale = 5;
-    Type type = 6;
-    enum Type {
-        ANIMAL = 0;
-        FOOD = 1;
-        GROUND = 2;
-    }
-    repeated Component components = 7;
-}
-
 // Data-oriented design like
 message Component {
     oneof type {
-        AnimalComponent animal = 1;
-        FoodComponent food = 2;
-        GroundComponent ground = 3;
+        SpaceComponent space = 1;
+        SpaceTimeComponent space_time = 2;
+        HealthComponent health = 3;
+        SpeedComponent speed = 4;
+        RenderComponent render = 5;
     }
-    message AnimalComponent {
+    message SpaceComponent {
+        NetVector3 position = 3;
+        NetQuaternion rotation = 4;
+        NetVector3 scale = 5;
+    }
+    message SpaceTimeComponent {
+        google.protobuf.Timestamp timestamp = 1;
+        SpaceComponent space = 2;
+    }
+    message HealthComponent {
         double life = 1;
     }
-    message FoodComponent {
+    message SpeedComponent {
+        double move_speed = 1;
+        double agility = 2;
     }
-    message GroundComponent {
+    message TargetComponent {
+        NetVector3 target = 1;
+    }
+    message RenderComponent {
+        float red = 1;
+        float green = 2;
+        float blue = 3;
     }
 }
 
@@ -73,46 +76,40 @@ message Packet {
     Metadata metadata = 1;
 
     oneof type {
-        // General physical objects
-        CreateObjectPacket create_object = 2;
+        // General physical entitys
+        CreateEntityPacket create_entity = 2;
         UpdatePositionPacket update_position = 3;
         UpdateRotationPacket update_rotation = 4;
-        DestroyObjectPacket destroy_object = 5;
+        DestroyEntityPacket destroy_entity = 5;
 
         // Animals & Environment
-        FoodEatenPacket food_eaten = 6;
         UpdateAnimalPacket update_animal = 7;
 
         // Server general parameters
         UpdateParametersPacket update_parameters = 8;
     }
 
-    message CreateObjectPacket {
-        NetObject object = 1; 
+    message CreateEntityPacket {
+        uint64 entity_id = 1;
+        repeated Component components = 2; 
     }
 
     message UpdatePositionPacket {
-        string object_id = 1;
+        uint64 entity_id = 1;
         NetVector3 position = 2;
     }
 
     message UpdateRotationPacket {
-        string object_id = 1;
+        uint64 entity_id = 1;
         NetQuaternion rotation = 2;
     }
 
-    message DestroyObjectPacket {
-        string object_id = 1;
-    }
-
-    // Occurs when an animal hit a food -> gain life, food disappear ...
-    message FoodEatenPacket { // Idk about this packet, maybe for eating animations ...
-        string food_id = 1; // I guess will be useful in the future with several foods
-        NetObject eater = 2;
+    message DestroyEntityPacket {
+        uint64 entity_id = 1;
     }
 
     message UpdateAnimalPacket { // Maybe will have more params later
-        string object_id = 1;
+        uint64 entity_id = 1;
         double life = 2;
     }
 

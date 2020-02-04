@@ -43,6 +43,7 @@ func Add(a, b erutan.NetVector3) erutan.NetVector3 {
 
 // Sub returns the standard vector difference of a and b.
 func Sub(a, b erutan.NetVector3) erutan.NetVector3 {
+	//DebugLogf("sub:%v||%v|| %v - %v: %v", a, b, a.X, b.X, a.X-b.X)
 	return erutan.NetVector3{X: a.X - b.X, Y: a.Y - b.Y, Z: a.Z - b.Z}
 }
 

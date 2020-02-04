@@ -25,34 +25,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type NetObject_Type int32
-
-const (
-	NetObject_ANIMAL NetObject_Type = 0
-	NetObject_FOOD   NetObject_Type = 1
-	NetObject_GROUND NetObject_Type = 2
-)
-
-var NetObject_Type_name = map[int32]string{
-	0: "ANIMAL",
-	1: "FOOD",
-	2: "GROUND",
-}
-
-var NetObject_Type_value = map[string]int32{
-	"ANIMAL": 0,
-	"FOOD":   1,
-	"GROUND": 2,
-}
-
-func (x NetObject_Type) String() string {
-	return proto.EnumName(NetObject_Type_name, int32(x))
-}
-
-func (NetObject_Type) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{3, 0}
-}
-
 type Metadata struct {
 	Timestamp            *timestamp.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
@@ -210,100 +182,14 @@ func (m *NetQuaternion) GetW() float64 {
 	return 0
 }
 
-// TODO: parent ...
-type NetObject struct {
-	ObjectId             string         `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
-	OwnerId              string         `protobuf:"bytes,2,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
-	Position             *NetVector3    `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`
-	Rotation             *NetQuaternion `protobuf:"bytes,4,opt,name=rotation,proto3" json:"rotation,omitempty"`
-	Scale                *NetVector3    `protobuf:"bytes,5,opt,name=scale,proto3" json:"scale,omitempty"`
-	Type                 NetObject_Type `protobuf:"varint,6,opt,name=type,proto3,enum=erutan.NetObject_Type" json:"type,omitempty"`
-	Components           []*Component   `protobuf:"bytes,7,rep,name=components,proto3" json:"components,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *NetObject) Reset()         { *m = NetObject{} }
-func (m *NetObject) String() string { return proto.CompactTextString(m) }
-func (*NetObject) ProtoMessage()    {}
-func (*NetObject) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{3}
-}
-
-func (m *NetObject) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NetObject.Unmarshal(m, b)
-}
-func (m *NetObject) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NetObject.Marshal(b, m, deterministic)
-}
-func (m *NetObject) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NetObject.Merge(m, src)
-}
-func (m *NetObject) XXX_Size() int {
-	return xxx_messageInfo_NetObject.Size(m)
-}
-func (m *NetObject) XXX_DiscardUnknown() {
-	xxx_messageInfo_NetObject.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NetObject proto.InternalMessageInfo
-
-func (m *NetObject) GetObjectId() string {
-	if m != nil {
-		return m.ObjectId
-	}
-	return ""
-}
-
-func (m *NetObject) GetOwnerId() string {
-	if m != nil {
-		return m.OwnerId
-	}
-	return ""
-}
-
-func (m *NetObject) GetPosition() *NetVector3 {
-	if m != nil {
-		return m.Position
-	}
-	return nil
-}
-
-func (m *NetObject) GetRotation() *NetQuaternion {
-	if m != nil {
-		return m.Rotation
-	}
-	return nil
-}
-
-func (m *NetObject) GetScale() *NetVector3 {
-	if m != nil {
-		return m.Scale
-	}
-	return nil
-}
-
-func (m *NetObject) GetType() NetObject_Type {
-	if m != nil {
-		return m.Type
-	}
-	return NetObject_ANIMAL
-}
-
-func (m *NetObject) GetComponents() []*Component {
-	if m != nil {
-		return m.Components
-	}
-	return nil
-}
-
 // Data-oriented design like
 type Component struct {
 	// Types that are valid to be assigned to Type:
-	//	*Component_Animal
-	//	*Component_Food
-	//	*Component_Ground
+	//	*Component_Space
+	//	*Component_SpaceTime
+	//	*Component_Health
+	//	*Component_Speed
+	//	*Component_Render
 	Type                 isComponent_Type `protobuf_oneof:"type"`
 	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
 	XXX_unrecognized     []byte           `json:"-"`
@@ -314,7 +200,7 @@ func (m *Component) Reset()         { *m = Component{} }
 func (m *Component) String() string { return proto.CompactTextString(m) }
 func (*Component) ProtoMessage()    {}
 func (*Component) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{4}
+	return fileDescriptor_dcbdca058206953b, []int{3}
 }
 
 func (m *Component) XXX_Unmarshal(b []byte) error {
@@ -339,23 +225,35 @@ type isComponent_Type interface {
 	isComponent_Type()
 }
 
-type Component_Animal struct {
-	Animal *Component_AnimalComponent `protobuf:"bytes,1,opt,name=animal,proto3,oneof"`
+type Component_Space struct {
+	Space *Component_SpaceComponent `protobuf:"bytes,1,opt,name=space,proto3,oneof"`
 }
 
-type Component_Food struct {
-	Food *Component_FoodComponent `protobuf:"bytes,2,opt,name=food,proto3,oneof"`
+type Component_SpaceTime struct {
+	SpaceTime *Component_SpaceTimeComponent `protobuf:"bytes,2,opt,name=space_time,json=spaceTime,proto3,oneof"`
 }
 
-type Component_Ground struct {
-	Ground *Component_GroundComponent `protobuf:"bytes,3,opt,name=ground,proto3,oneof"`
+type Component_Health struct {
+	Health *Component_HealthComponent `protobuf:"bytes,3,opt,name=health,proto3,oneof"`
 }
 
-func (*Component_Animal) isComponent_Type() {}
+type Component_Speed struct {
+	Speed *Component_SpeedComponent `protobuf:"bytes,4,opt,name=speed,proto3,oneof"`
+}
 
-func (*Component_Food) isComponent_Type() {}
+type Component_Render struct {
+	Render *Component_RenderComponent `protobuf:"bytes,5,opt,name=render,proto3,oneof"`
+}
 
-func (*Component_Ground) isComponent_Type() {}
+func (*Component_Space) isComponent_Type() {}
+
+func (*Component_SpaceTime) isComponent_Type() {}
+
+func (*Component_Health) isComponent_Type() {}
+
+func (*Component_Speed) isComponent_Type() {}
+
+func (*Component_Render) isComponent_Type() {}
 
 func (m *Component) GetType() isComponent_Type {
 	if m != nil {
@@ -364,23 +262,37 @@ func (m *Component) GetType() isComponent_Type {
 	return nil
 }
 
-func (m *Component) GetAnimal() *Component_AnimalComponent {
-	if x, ok := m.GetType().(*Component_Animal); ok {
-		return x.Animal
+func (m *Component) GetSpace() *Component_SpaceComponent {
+	if x, ok := m.GetType().(*Component_Space); ok {
+		return x.Space
 	}
 	return nil
 }
 
-func (m *Component) GetFood() *Component_FoodComponent {
-	if x, ok := m.GetType().(*Component_Food); ok {
-		return x.Food
+func (m *Component) GetSpaceTime() *Component_SpaceTimeComponent {
+	if x, ok := m.GetType().(*Component_SpaceTime); ok {
+		return x.SpaceTime
 	}
 	return nil
 }
 
-func (m *Component) GetGround() *Component_GroundComponent {
-	if x, ok := m.GetType().(*Component_Ground); ok {
-		return x.Ground
+func (m *Component) GetHealth() *Component_HealthComponent {
+	if x, ok := m.GetType().(*Component_Health); ok {
+		return x.Health
+	}
+	return nil
+}
+
+func (m *Component) GetSpeed() *Component_SpeedComponent {
+	if x, ok := m.GetType().(*Component_Speed); ok {
+		return x.Speed
+	}
+	return nil
+}
+
+func (m *Component) GetRender() *Component_RenderComponent {
+	if x, ok := m.GetType().(*Component_Render); ok {
+		return x.Render
 	}
 	return nil
 }
@@ -388,121 +300,303 @@ func (m *Component) GetGround() *Component_GroundComponent {
 // XXX_OneofWrappers is for the internal use of the proto package.
 func (*Component) XXX_OneofWrappers() []interface{} {
 	return []interface{}{
-		(*Component_Animal)(nil),
-		(*Component_Food)(nil),
-		(*Component_Ground)(nil),
+		(*Component_Space)(nil),
+		(*Component_SpaceTime)(nil),
+		(*Component_Health)(nil),
+		(*Component_Speed)(nil),
+		(*Component_Render)(nil),
 	}
 }
 
-type Component_AnimalComponent struct {
+type Component_SpaceComponent struct {
+	Position             *NetVector3    `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`
+	Rotation             *NetQuaternion `protobuf:"bytes,4,opt,name=rotation,proto3" json:"rotation,omitempty"`
+	Scale                *NetVector3    `protobuf:"bytes,5,opt,name=scale,proto3" json:"scale,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
+}
+
+func (m *Component_SpaceComponent) Reset()         { *m = Component_SpaceComponent{} }
+func (m *Component_SpaceComponent) String() string { return proto.CompactTextString(m) }
+func (*Component_SpaceComponent) ProtoMessage()    {}
+func (*Component_SpaceComponent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcbdca058206953b, []int{3, 0}
+}
+
+func (m *Component_SpaceComponent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Component_SpaceComponent.Unmarshal(m, b)
+}
+func (m *Component_SpaceComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Component_SpaceComponent.Marshal(b, m, deterministic)
+}
+func (m *Component_SpaceComponent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Component_SpaceComponent.Merge(m, src)
+}
+func (m *Component_SpaceComponent) XXX_Size() int {
+	return xxx_messageInfo_Component_SpaceComponent.Size(m)
+}
+func (m *Component_SpaceComponent) XXX_DiscardUnknown() {
+	xxx_messageInfo_Component_SpaceComponent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Component_SpaceComponent proto.InternalMessageInfo
+
+func (m *Component_SpaceComponent) GetPosition() *NetVector3 {
+	if m != nil {
+		return m.Position
+	}
+	return nil
+}
+
+func (m *Component_SpaceComponent) GetRotation() *NetQuaternion {
+	if m != nil {
+		return m.Rotation
+	}
+	return nil
+}
+
+func (m *Component_SpaceComponent) GetScale() *NetVector3 {
+	if m != nil {
+		return m.Scale
+	}
+	return nil
+}
+
+type Component_SpaceTimeComponent struct {
+	Timestamp            *timestamp.Timestamp      `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Space                *Component_SpaceComponent `protobuf:"bytes,2,opt,name=space,proto3" json:"space,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
+}
+
+func (m *Component_SpaceTimeComponent) Reset()         { *m = Component_SpaceTimeComponent{} }
+func (m *Component_SpaceTimeComponent) String() string { return proto.CompactTextString(m) }
+func (*Component_SpaceTimeComponent) ProtoMessage()    {}
+func (*Component_SpaceTimeComponent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcbdca058206953b, []int{3, 1}
+}
+
+func (m *Component_SpaceTimeComponent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Component_SpaceTimeComponent.Unmarshal(m, b)
+}
+func (m *Component_SpaceTimeComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Component_SpaceTimeComponent.Marshal(b, m, deterministic)
+}
+func (m *Component_SpaceTimeComponent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Component_SpaceTimeComponent.Merge(m, src)
+}
+func (m *Component_SpaceTimeComponent) XXX_Size() int {
+	return xxx_messageInfo_Component_SpaceTimeComponent.Size(m)
+}
+func (m *Component_SpaceTimeComponent) XXX_DiscardUnknown() {
+	xxx_messageInfo_Component_SpaceTimeComponent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Component_SpaceTimeComponent proto.InternalMessageInfo
+
+func (m *Component_SpaceTimeComponent) GetTimestamp() *timestamp.Timestamp {
+	if m != nil {
+		return m.Timestamp
+	}
+	return nil
+}
+
+func (m *Component_SpaceTimeComponent) GetSpace() *Component_SpaceComponent {
+	if m != nil {
+		return m.Space
+	}
+	return nil
+}
+
+type Component_HealthComponent struct {
 	Life                 float64  `protobuf:"fixed64,1,opt,name=life,proto3" json:"life,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Component_AnimalComponent) Reset()         { *m = Component_AnimalComponent{} }
-func (m *Component_AnimalComponent) String() string { return proto.CompactTextString(m) }
-func (*Component_AnimalComponent) ProtoMessage()    {}
-func (*Component_AnimalComponent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{4, 0}
+func (m *Component_HealthComponent) Reset()         { *m = Component_HealthComponent{} }
+func (m *Component_HealthComponent) String() string { return proto.CompactTextString(m) }
+func (*Component_HealthComponent) ProtoMessage()    {}
+func (*Component_HealthComponent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcbdca058206953b, []int{3, 2}
 }
 
-func (m *Component_AnimalComponent) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Component_AnimalComponent.Unmarshal(m, b)
+func (m *Component_HealthComponent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Component_HealthComponent.Unmarshal(m, b)
 }
-func (m *Component_AnimalComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Component_AnimalComponent.Marshal(b, m, deterministic)
+func (m *Component_HealthComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Component_HealthComponent.Marshal(b, m, deterministic)
 }
-func (m *Component_AnimalComponent) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Component_AnimalComponent.Merge(m, src)
+func (m *Component_HealthComponent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Component_HealthComponent.Merge(m, src)
 }
-func (m *Component_AnimalComponent) XXX_Size() int {
-	return xxx_messageInfo_Component_AnimalComponent.Size(m)
+func (m *Component_HealthComponent) XXX_Size() int {
+	return xxx_messageInfo_Component_HealthComponent.Size(m)
 }
-func (m *Component_AnimalComponent) XXX_DiscardUnknown() {
-	xxx_messageInfo_Component_AnimalComponent.DiscardUnknown(m)
+func (m *Component_HealthComponent) XXX_DiscardUnknown() {
+	xxx_messageInfo_Component_HealthComponent.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Component_AnimalComponent proto.InternalMessageInfo
+var xxx_messageInfo_Component_HealthComponent proto.InternalMessageInfo
 
-func (m *Component_AnimalComponent) GetLife() float64 {
+func (m *Component_HealthComponent) GetLife() float64 {
 	if m != nil {
 		return m.Life
 	}
 	return 0
 }
 
-type Component_FoodComponent struct {
+type Component_SpeedComponent struct {
+	MoveSpeed            float64  `protobuf:"fixed64,1,opt,name=move_speed,json=moveSpeed,proto3" json:"move_speed,omitempty"`
+	Agility              float64  `protobuf:"fixed64,2,opt,name=agility,proto3" json:"agility,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Component_FoodComponent) Reset()         { *m = Component_FoodComponent{} }
-func (m *Component_FoodComponent) String() string { return proto.CompactTextString(m) }
-func (*Component_FoodComponent) ProtoMessage()    {}
-func (*Component_FoodComponent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{4, 1}
+func (m *Component_SpeedComponent) Reset()         { *m = Component_SpeedComponent{} }
+func (m *Component_SpeedComponent) String() string { return proto.CompactTextString(m) }
+func (*Component_SpeedComponent) ProtoMessage()    {}
+func (*Component_SpeedComponent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcbdca058206953b, []int{3, 3}
 }
 
-func (m *Component_FoodComponent) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Component_FoodComponent.Unmarshal(m, b)
+func (m *Component_SpeedComponent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Component_SpeedComponent.Unmarshal(m, b)
 }
-func (m *Component_FoodComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Component_FoodComponent.Marshal(b, m, deterministic)
+func (m *Component_SpeedComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Component_SpeedComponent.Marshal(b, m, deterministic)
 }
-func (m *Component_FoodComponent) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Component_FoodComponent.Merge(m, src)
+func (m *Component_SpeedComponent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Component_SpeedComponent.Merge(m, src)
 }
-func (m *Component_FoodComponent) XXX_Size() int {
-	return xxx_messageInfo_Component_FoodComponent.Size(m)
+func (m *Component_SpeedComponent) XXX_Size() int {
+	return xxx_messageInfo_Component_SpeedComponent.Size(m)
 }
-func (m *Component_FoodComponent) XXX_DiscardUnknown() {
-	xxx_messageInfo_Component_FoodComponent.DiscardUnknown(m)
+func (m *Component_SpeedComponent) XXX_DiscardUnknown() {
+	xxx_messageInfo_Component_SpeedComponent.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Component_FoodComponent proto.InternalMessageInfo
+var xxx_messageInfo_Component_SpeedComponent proto.InternalMessageInfo
 
-type Component_GroundComponent struct {
+func (m *Component_SpeedComponent) GetMoveSpeed() float64 {
+	if m != nil {
+		return m.MoveSpeed
+	}
+	return 0
+}
+
+func (m *Component_SpeedComponent) GetAgility() float64 {
+	if m != nil {
+		return m.Agility
+	}
+	return 0
+}
+
+type Component_TargetComponent struct {
+	Target               *NetVector3 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *Component_TargetComponent) Reset()         { *m = Component_TargetComponent{} }
+func (m *Component_TargetComponent) String() string { return proto.CompactTextString(m) }
+func (*Component_TargetComponent) ProtoMessage()    {}
+func (*Component_TargetComponent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcbdca058206953b, []int{3, 4}
+}
+
+func (m *Component_TargetComponent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Component_TargetComponent.Unmarshal(m, b)
+}
+func (m *Component_TargetComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Component_TargetComponent.Marshal(b, m, deterministic)
+}
+func (m *Component_TargetComponent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Component_TargetComponent.Merge(m, src)
+}
+func (m *Component_TargetComponent) XXX_Size() int {
+	return xxx_messageInfo_Component_TargetComponent.Size(m)
+}
+func (m *Component_TargetComponent) XXX_DiscardUnknown() {
+	xxx_messageInfo_Component_TargetComponent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Component_TargetComponent proto.InternalMessageInfo
+
+func (m *Component_TargetComponent) GetTarget() *NetVector3 {
+	if m != nil {
+		return m.Target
+	}
+	return nil
+}
+
+type Component_RenderComponent struct {
+	Red                  float32  `protobuf:"fixed32,1,opt,name=red,proto3" json:"red,omitempty"`
+	Green                float32  `protobuf:"fixed32,2,opt,name=green,proto3" json:"green,omitempty"`
+	Blue                 float32  `protobuf:"fixed32,3,opt,name=blue,proto3" json:"blue,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Component_GroundComponent) Reset()         { *m = Component_GroundComponent{} }
-func (m *Component_GroundComponent) String() string { return proto.CompactTextString(m) }
-func (*Component_GroundComponent) ProtoMessage()    {}
-func (*Component_GroundComponent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{4, 2}
+func (m *Component_RenderComponent) Reset()         { *m = Component_RenderComponent{} }
+func (m *Component_RenderComponent) String() string { return proto.CompactTextString(m) }
+func (*Component_RenderComponent) ProtoMessage()    {}
+func (*Component_RenderComponent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcbdca058206953b, []int{3, 5}
 }
 
-func (m *Component_GroundComponent) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Component_GroundComponent.Unmarshal(m, b)
+func (m *Component_RenderComponent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Component_RenderComponent.Unmarshal(m, b)
 }
-func (m *Component_GroundComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Component_GroundComponent.Marshal(b, m, deterministic)
+func (m *Component_RenderComponent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Component_RenderComponent.Marshal(b, m, deterministic)
 }
-func (m *Component_GroundComponent) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Component_GroundComponent.Merge(m, src)
+func (m *Component_RenderComponent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Component_RenderComponent.Merge(m, src)
 }
-func (m *Component_GroundComponent) XXX_Size() int {
-	return xxx_messageInfo_Component_GroundComponent.Size(m)
+func (m *Component_RenderComponent) XXX_Size() int {
+	return xxx_messageInfo_Component_RenderComponent.Size(m)
 }
-func (m *Component_GroundComponent) XXX_DiscardUnknown() {
-	xxx_messageInfo_Component_GroundComponent.DiscardUnknown(m)
+func (m *Component_RenderComponent) XXX_DiscardUnknown() {
+	xxx_messageInfo_Component_RenderComponent.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Component_GroundComponent proto.InternalMessageInfo
+var xxx_messageInfo_Component_RenderComponent proto.InternalMessageInfo
+
+func (m *Component_RenderComponent) GetRed() float32 {
+	if m != nil {
+		return m.Red
+	}
+	return 0
+}
+
+func (m *Component_RenderComponent) GetGreen() float32 {
+	if m != nil {
+		return m.Green
+	}
+	return 0
+}
+
+func (m *Component_RenderComponent) GetBlue() float32 {
+	if m != nil {
+		return m.Blue
+	}
+	return 0
+}
 
 type Packet struct {
 	Metadata *Metadata `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	// Types that are valid to be assigned to Type:
-	//	*Packet_CreateObject
+	//	*Packet_CreateEntity
 	//	*Packet_UpdatePosition
 	//	*Packet_UpdateRotation
-	//	*Packet_DestroyObject
-	//	*Packet_FoodEaten
+	//	*Packet_DestroyEntity
 	//	*Packet_UpdateAnimal
 	//	*Packet_UpdateParameters
 	Type                 isPacket_Type `protobuf_oneof:"type"`
@@ -515,7 +609,7 @@ func (m *Packet) Reset()         { *m = Packet{} }
 func (m *Packet) String() string { return proto.CompactTextString(m) }
 func (*Packet) ProtoMessage()    {}
 func (*Packet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5}
+	return fileDescriptor_dcbdca058206953b, []int{4}
 }
 
 func (m *Packet) XXX_Unmarshal(b []byte) error {
@@ -547,8 +641,8 @@ type isPacket_Type interface {
 	isPacket_Type()
 }
 
-type Packet_CreateObject struct {
-	CreateObject *Packet_CreateObjectPacket `protobuf:"bytes,2,opt,name=create_object,json=createObject,proto3,oneof"`
+type Packet_CreateEntity struct {
+	CreateEntity *Packet_CreateEntityPacket `protobuf:"bytes,2,opt,name=create_entity,json=createEntity,proto3,oneof"`
 }
 
 type Packet_UpdatePosition struct {
@@ -559,12 +653,8 @@ type Packet_UpdateRotation struct {
 	UpdateRotation *Packet_UpdateRotationPacket `protobuf:"bytes,4,opt,name=update_rotation,json=updateRotation,proto3,oneof"`
 }
 
-type Packet_DestroyObject struct {
-	DestroyObject *Packet_DestroyObjectPacket `protobuf:"bytes,5,opt,name=destroy_object,json=destroyObject,proto3,oneof"`
-}
-
-type Packet_FoodEaten struct {
-	FoodEaten *Packet_FoodEatenPacket `protobuf:"bytes,6,opt,name=food_eaten,json=foodEaten,proto3,oneof"`
+type Packet_DestroyEntity struct {
+	DestroyEntity *Packet_DestroyEntityPacket `protobuf:"bytes,5,opt,name=destroy_entity,json=destroyEntity,proto3,oneof"`
 }
 
 type Packet_UpdateAnimal struct {
@@ -575,15 +665,13 @@ type Packet_UpdateParameters struct {
 	UpdateParameters *Packet_UpdateParametersPacket `protobuf:"bytes,8,opt,name=update_parameters,json=updateParameters,proto3,oneof"`
 }
 
-func (*Packet_CreateObject) isPacket_Type() {}
+func (*Packet_CreateEntity) isPacket_Type() {}
 
 func (*Packet_UpdatePosition) isPacket_Type() {}
 
 func (*Packet_UpdateRotation) isPacket_Type() {}
 
-func (*Packet_DestroyObject) isPacket_Type() {}
-
-func (*Packet_FoodEaten) isPacket_Type() {}
+func (*Packet_DestroyEntity) isPacket_Type() {}
 
 func (*Packet_UpdateAnimal) isPacket_Type() {}
 
@@ -596,9 +684,9 @@ func (m *Packet) GetType() isPacket_Type {
 	return nil
 }
 
-func (m *Packet) GetCreateObject() *Packet_CreateObjectPacket {
-	if x, ok := m.GetType().(*Packet_CreateObject); ok {
-		return x.CreateObject
+func (m *Packet) GetCreateEntity() *Packet_CreateEntityPacket {
+	if x, ok := m.GetType().(*Packet_CreateEntity); ok {
+		return x.CreateEntity
 	}
 	return nil
 }
@@ -617,16 +705,9 @@ func (m *Packet) GetUpdateRotation() *Packet_UpdateRotationPacket {
 	return nil
 }
 
-func (m *Packet) GetDestroyObject() *Packet_DestroyObjectPacket {
-	if x, ok := m.GetType().(*Packet_DestroyObject); ok {
-		return x.DestroyObject
-	}
-	return nil
-}
-
-func (m *Packet) GetFoodEaten() *Packet_FoodEatenPacket {
-	if x, ok := m.GetType().(*Packet_FoodEaten); ok {
-		return x.FoodEaten
+func (m *Packet) GetDestroyEntity() *Packet_DestroyEntityPacket {
+	if x, ok := m.GetType().(*Packet_DestroyEntity); ok {
+		return x.DestroyEntity
 	}
 	return nil
 }
@@ -648,57 +729,64 @@ func (m *Packet) GetUpdateParameters() *Packet_UpdateParametersPacket {
 // XXX_OneofWrappers is for the internal use of the proto package.
 func (*Packet) XXX_OneofWrappers() []interface{} {
 	return []interface{}{
-		(*Packet_CreateObject)(nil),
+		(*Packet_CreateEntity)(nil),
 		(*Packet_UpdatePosition)(nil),
 		(*Packet_UpdateRotation)(nil),
-		(*Packet_DestroyObject)(nil),
-		(*Packet_FoodEaten)(nil),
+		(*Packet_DestroyEntity)(nil),
 		(*Packet_UpdateAnimal)(nil),
 		(*Packet_UpdateParameters)(nil),
 	}
 }
 
-type Packet_CreateObjectPacket struct {
-	Object               *NetObject `protobuf:"bytes,1,opt,name=object,proto3" json:"object,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
+type Packet_CreateEntityPacket struct {
+	EntityId             uint64       `protobuf:"varint,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	Components           []*Component `protobuf:"bytes,2,rep,name=components,proto3" json:"components,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *Packet_CreateObjectPacket) Reset()         { *m = Packet_CreateObjectPacket{} }
-func (m *Packet_CreateObjectPacket) String() string { return proto.CompactTextString(m) }
-func (*Packet_CreateObjectPacket) ProtoMessage()    {}
-func (*Packet_CreateObjectPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5, 0}
+func (m *Packet_CreateEntityPacket) Reset()         { *m = Packet_CreateEntityPacket{} }
+func (m *Packet_CreateEntityPacket) String() string { return proto.CompactTextString(m) }
+func (*Packet_CreateEntityPacket) ProtoMessage()    {}
+func (*Packet_CreateEntityPacket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcbdca058206953b, []int{4, 0}
 }
 
-func (m *Packet_CreateObjectPacket) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Packet_CreateObjectPacket.Unmarshal(m, b)
+func (m *Packet_CreateEntityPacket) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Packet_CreateEntityPacket.Unmarshal(m, b)
 }
-func (m *Packet_CreateObjectPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Packet_CreateObjectPacket.Marshal(b, m, deterministic)
+func (m *Packet_CreateEntityPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Packet_CreateEntityPacket.Marshal(b, m, deterministic)
 }
-func (m *Packet_CreateObjectPacket) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Packet_CreateObjectPacket.Merge(m, src)
+func (m *Packet_CreateEntityPacket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Packet_CreateEntityPacket.Merge(m, src)
 }
-func (m *Packet_CreateObjectPacket) XXX_Size() int {
-	return xxx_messageInfo_Packet_CreateObjectPacket.Size(m)
+func (m *Packet_CreateEntityPacket) XXX_Size() int {
+	return xxx_messageInfo_Packet_CreateEntityPacket.Size(m)
 }
-func (m *Packet_CreateObjectPacket) XXX_DiscardUnknown() {
-	xxx_messageInfo_Packet_CreateObjectPacket.DiscardUnknown(m)
+func (m *Packet_CreateEntityPacket) XXX_DiscardUnknown() {
+	xxx_messageInfo_Packet_CreateEntityPacket.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Packet_CreateObjectPacket proto.InternalMessageInfo
+var xxx_messageInfo_Packet_CreateEntityPacket proto.InternalMessageInfo
 
-func (m *Packet_CreateObjectPacket) GetObject() *NetObject {
+func (m *Packet_CreateEntityPacket) GetEntityId() uint64 {
 	if m != nil {
-		return m.Object
+		return m.EntityId
+	}
+	return 0
+}
+
+func (m *Packet_CreateEntityPacket) GetComponents() []*Component {
+	if m != nil {
+		return m.Components
 	}
 	return nil
 }
 
 type Packet_UpdatePositionPacket struct {
-	ObjectId             string      `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
+	EntityId             uint64      `protobuf:"varint,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	Position             *NetVector3 `protobuf:"bytes,2,opt,name=position,proto3" json:"position,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
@@ -709,7 +797,7 @@ func (m *Packet_UpdatePositionPacket) Reset()         { *m = Packet_UpdatePositi
 func (m *Packet_UpdatePositionPacket) String() string { return proto.CompactTextString(m) }
 func (*Packet_UpdatePositionPacket) ProtoMessage()    {}
 func (*Packet_UpdatePositionPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5, 1}
+	return fileDescriptor_dcbdca058206953b, []int{4, 1}
 }
 
 func (m *Packet_UpdatePositionPacket) XXX_Unmarshal(b []byte) error {
@@ -730,11 +818,11 @@ func (m *Packet_UpdatePositionPacket) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Packet_UpdatePositionPacket proto.InternalMessageInfo
 
-func (m *Packet_UpdatePositionPacket) GetObjectId() string {
+func (m *Packet_UpdatePositionPacket) GetEntityId() uint64 {
 	if m != nil {
-		return m.ObjectId
+		return m.EntityId
 	}
-	return ""
+	return 0
 }
 
 func (m *Packet_UpdatePositionPacket) GetPosition() *NetVector3 {
@@ -745,7 +833,7 @@ func (m *Packet_UpdatePositionPacket) GetPosition() *NetVector3 {
 }
 
 type Packet_UpdateRotationPacket struct {
-	ObjectId             string         `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
+	EntityId             uint64         `protobuf:"varint,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	Rotation             *NetQuaternion `protobuf:"bytes,2,opt,name=rotation,proto3" json:"rotation,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
@@ -756,7 +844,7 @@ func (m *Packet_UpdateRotationPacket) Reset()         { *m = Packet_UpdateRotati
 func (m *Packet_UpdateRotationPacket) String() string { return proto.CompactTextString(m) }
 func (*Packet_UpdateRotationPacket) ProtoMessage()    {}
 func (*Packet_UpdateRotationPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5, 2}
+	return fileDescriptor_dcbdca058206953b, []int{4, 2}
 }
 
 func (m *Packet_UpdateRotationPacket) XXX_Unmarshal(b []byte) error {
@@ -777,11 +865,11 @@ func (m *Packet_UpdateRotationPacket) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Packet_UpdateRotationPacket proto.InternalMessageInfo
 
-func (m *Packet_UpdateRotationPacket) GetObjectId() string {
+func (m *Packet_UpdateRotationPacket) GetEntityId() uint64 {
 	if m != nil {
-		return m.ObjectId
+		return m.EntityId
 	}
-	return ""
+	return 0
 }
 
 func (m *Packet_UpdateRotationPacket) GetRotation() *NetQuaternion {
@@ -791,95 +879,47 @@ func (m *Packet_UpdateRotationPacket) GetRotation() *NetQuaternion {
 	return nil
 }
 
-type Packet_DestroyObjectPacket struct {
-	ObjectId             string   `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
+type Packet_DestroyEntityPacket struct {
+	EntityId             uint64   `protobuf:"varint,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Packet_DestroyObjectPacket) Reset()         { *m = Packet_DestroyObjectPacket{} }
-func (m *Packet_DestroyObjectPacket) String() string { return proto.CompactTextString(m) }
-func (*Packet_DestroyObjectPacket) ProtoMessage()    {}
-func (*Packet_DestroyObjectPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5, 3}
+func (m *Packet_DestroyEntityPacket) Reset()         { *m = Packet_DestroyEntityPacket{} }
+func (m *Packet_DestroyEntityPacket) String() string { return proto.CompactTextString(m) }
+func (*Packet_DestroyEntityPacket) ProtoMessage()    {}
+func (*Packet_DestroyEntityPacket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_dcbdca058206953b, []int{4, 3}
 }
 
-func (m *Packet_DestroyObjectPacket) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Packet_DestroyObjectPacket.Unmarshal(m, b)
+func (m *Packet_DestroyEntityPacket) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Packet_DestroyEntityPacket.Unmarshal(m, b)
 }
-func (m *Packet_DestroyObjectPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Packet_DestroyObjectPacket.Marshal(b, m, deterministic)
+func (m *Packet_DestroyEntityPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Packet_DestroyEntityPacket.Marshal(b, m, deterministic)
 }
-func (m *Packet_DestroyObjectPacket) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Packet_DestroyObjectPacket.Merge(m, src)
+func (m *Packet_DestroyEntityPacket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Packet_DestroyEntityPacket.Merge(m, src)
 }
-func (m *Packet_DestroyObjectPacket) XXX_Size() int {
-	return xxx_messageInfo_Packet_DestroyObjectPacket.Size(m)
+func (m *Packet_DestroyEntityPacket) XXX_Size() int {
+	return xxx_messageInfo_Packet_DestroyEntityPacket.Size(m)
 }
-func (m *Packet_DestroyObjectPacket) XXX_DiscardUnknown() {
-	xxx_messageInfo_Packet_DestroyObjectPacket.DiscardUnknown(m)
+func (m *Packet_DestroyEntityPacket) XXX_DiscardUnknown() {
+	xxx_messageInfo_Packet_DestroyEntityPacket.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Packet_DestroyObjectPacket proto.InternalMessageInfo
+var xxx_messageInfo_Packet_DestroyEntityPacket proto.InternalMessageInfo
 
-func (m *Packet_DestroyObjectPacket) GetObjectId() string {
+func (m *Packet_DestroyEntityPacket) GetEntityId() uint64 {
 	if m != nil {
-		return m.ObjectId
+		return m.EntityId
 	}
-	return ""
-}
-
-// Occurs when an animal hit a food -> gain life, food disappear ...
-type Packet_FoodEatenPacket struct {
-	FoodId               string     `protobuf:"bytes,1,opt,name=food_id,json=foodId,proto3" json:"food_id,omitempty"`
-	Eater                *NetObject `protobuf:"bytes,2,opt,name=eater,proto3" json:"eater,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
-}
-
-func (m *Packet_FoodEatenPacket) Reset()         { *m = Packet_FoodEatenPacket{} }
-func (m *Packet_FoodEatenPacket) String() string { return proto.CompactTextString(m) }
-func (*Packet_FoodEatenPacket) ProtoMessage()    {}
-func (*Packet_FoodEatenPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5, 4}
-}
-
-func (m *Packet_FoodEatenPacket) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Packet_FoodEatenPacket.Unmarshal(m, b)
-}
-func (m *Packet_FoodEatenPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Packet_FoodEatenPacket.Marshal(b, m, deterministic)
-}
-func (m *Packet_FoodEatenPacket) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Packet_FoodEatenPacket.Merge(m, src)
-}
-func (m *Packet_FoodEatenPacket) XXX_Size() int {
-	return xxx_messageInfo_Packet_FoodEatenPacket.Size(m)
-}
-func (m *Packet_FoodEatenPacket) XXX_DiscardUnknown() {
-	xxx_messageInfo_Packet_FoodEatenPacket.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Packet_FoodEatenPacket proto.InternalMessageInfo
-
-func (m *Packet_FoodEatenPacket) GetFoodId() string {
-	if m != nil {
-		return m.FoodId
-	}
-	return ""
-}
-
-func (m *Packet_FoodEatenPacket) GetEater() *NetObject {
-	if m != nil {
-		return m.Eater
-	}
-	return nil
+	return 0
 }
 
 type Packet_UpdateAnimalPacket struct {
-	ObjectId             string   `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
+	EntityId             uint64   `protobuf:"varint,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	Life                 float64  `protobuf:"fixed64,2,opt,name=life,proto3" json:"life,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -890,7 +930,7 @@ func (m *Packet_UpdateAnimalPacket) Reset()         { *m = Packet_UpdateAnimalPa
 func (m *Packet_UpdateAnimalPacket) String() string { return proto.CompactTextString(m) }
 func (*Packet_UpdateAnimalPacket) ProtoMessage()    {}
 func (*Packet_UpdateAnimalPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5, 5}
+	return fileDescriptor_dcbdca058206953b, []int{4, 4}
 }
 
 func (m *Packet_UpdateAnimalPacket) XXX_Unmarshal(b []byte) error {
@@ -911,11 +951,11 @@ func (m *Packet_UpdateAnimalPacket) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Packet_UpdateAnimalPacket proto.InternalMessageInfo
 
-func (m *Packet_UpdateAnimalPacket) GetObjectId() string {
+func (m *Packet_UpdateAnimalPacket) GetEntityId() uint64 {
 	if m != nil {
-		return m.ObjectId
+		return m.EntityId
 	}
-	return ""
+	return 0
 }
 
 func (m *Packet_UpdateAnimalPacket) GetLife() float64 {
@@ -936,7 +976,7 @@ func (m *Packet_UpdateParametersPacket) Reset()         { *m = Packet_UpdatePara
 func (m *Packet_UpdateParametersPacket) String() string { return proto.CompactTextString(m) }
 func (*Packet_UpdateParametersPacket) ProtoMessage()    {}
 func (*Packet_UpdateParametersPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5, 6}
+	return fileDescriptor_dcbdca058206953b, []int{4, 5}
 }
 
 func (m *Packet_UpdateParametersPacket) XXX_Unmarshal(b []byte) error {
@@ -979,7 +1019,7 @@ func (m *Packet_UpdateParametersPacket_Parameter) Reset() {
 func (m *Packet_UpdateParametersPacket_Parameter) String() string { return proto.CompactTextString(m) }
 func (*Packet_UpdateParametersPacket_Parameter) ProtoMessage()    {}
 func (*Packet_UpdateParametersPacket_Parameter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dcbdca058206953b, []int{5, 6, 0}
+	return fileDescriptor_dcbdca058206953b, []int{4, 5, 0}
 }
 
 func (m *Packet_UpdateParametersPacket_Parameter) XXX_Unmarshal(b []byte) error {
@@ -1033,21 +1073,21 @@ func (*Packet_UpdateParametersPacket_Parameter) XXX_OneofWrappers() []interface{
 }
 
 func init() {
-	proto.RegisterEnum("erutan.NetObject_Type", NetObject_Type_name, NetObject_Type_value)
 	proto.RegisterType((*Metadata)(nil), "erutan.Metadata")
 	proto.RegisterType((*NetVector3)(nil), "erutan.NetVector3")
 	proto.RegisterType((*NetQuaternion)(nil), "erutan.NetQuaternion")
-	proto.RegisterType((*NetObject)(nil), "erutan.NetObject")
 	proto.RegisterType((*Component)(nil), "erutan.Component")
-	proto.RegisterType((*Component_AnimalComponent)(nil), "erutan.Component.AnimalComponent")
-	proto.RegisterType((*Component_FoodComponent)(nil), "erutan.Component.FoodComponent")
-	proto.RegisterType((*Component_GroundComponent)(nil), "erutan.Component.GroundComponent")
+	proto.RegisterType((*Component_SpaceComponent)(nil), "erutan.Component.SpaceComponent")
+	proto.RegisterType((*Component_SpaceTimeComponent)(nil), "erutan.Component.SpaceTimeComponent")
+	proto.RegisterType((*Component_HealthComponent)(nil), "erutan.Component.HealthComponent")
+	proto.RegisterType((*Component_SpeedComponent)(nil), "erutan.Component.SpeedComponent")
+	proto.RegisterType((*Component_TargetComponent)(nil), "erutan.Component.TargetComponent")
+	proto.RegisterType((*Component_RenderComponent)(nil), "erutan.Component.RenderComponent")
 	proto.RegisterType((*Packet)(nil), "erutan.Packet")
-	proto.RegisterType((*Packet_CreateObjectPacket)(nil), "erutan.Packet.CreateObjectPacket")
+	proto.RegisterType((*Packet_CreateEntityPacket)(nil), "erutan.Packet.CreateEntityPacket")
 	proto.RegisterType((*Packet_UpdatePositionPacket)(nil), "erutan.Packet.UpdatePositionPacket")
 	proto.RegisterType((*Packet_UpdateRotationPacket)(nil), "erutan.Packet.UpdateRotationPacket")
-	proto.RegisterType((*Packet_DestroyObjectPacket)(nil), "erutan.Packet.DestroyObjectPacket")
-	proto.RegisterType((*Packet_FoodEatenPacket)(nil), "erutan.Packet.FoodEatenPacket")
+	proto.RegisterType((*Packet_DestroyEntityPacket)(nil), "erutan.Packet.DestroyEntityPacket")
 	proto.RegisterType((*Packet_UpdateAnimalPacket)(nil), "erutan.Packet.UpdateAnimalPacket")
 	proto.RegisterType((*Packet_UpdateParametersPacket)(nil), "erutan.Packet.UpdateParametersPacket")
 	proto.RegisterType((*Packet_UpdateParametersPacket_Parameter)(nil), "erutan.Packet.UpdateParametersPacket.Parameter")
@@ -1056,61 +1096,61 @@ func init() {
 func init() { proto.RegisterFile("realtime.proto", fileDescriptor_dcbdca058206953b) }
 
 var fileDescriptor_dcbdca058206953b = []byte{
-	// 864 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x56, 0xef, 0x6e, 0xe3, 0x44,
-	0x10, 0x8f, 0x7d, 0xa9, 0xeb, 0x4c, 0xae, 0x49, 0x3a, 0x70, 0x47, 0x30, 0x88, 0x2b, 0x46, 0x27,
-	0x02, 0x42, 0x2e, 0xcd, 0x09, 0x74, 0x12, 0x1f, 0x4e, 0xed, 0xb5, 0xd7, 0x56, 0x70, 0x49, 0x71,
-	0x7b, 0x7c, 0xad, 0xb6, 0xf6, 0xa6, 0x32, 0x97, 0x78, 0xa3, 0xcd, 0x5a, 0xbd, 0xf4, 0x25, 0x78,
-	0x01, 0x9e, 0x80, 0xd7, 0xe1, 0x13, 0x6f, 0x83, 0xf6, 0x8f, 0x5d, 0xc7, 0x31, 0xa5, 0x9f, 0xe2,
-	0x99, 0xf9, 0xed, 0x6f, 0x76, 0x66, 0x7e, 0x9e, 0x18, 0x3a, 0x9c, 0x92, 0xa9, 0x48, 0x66, 0x34,
-	0x98, 0x73, 0x26, 0x18, 0x3a, 0x94, 0x67, 0x82, 0xa4, 0xde, 0xb3, 0x6b, 0xc6, 0xae, 0xa7, 0x74,
-	0x57, 0x79, 0xaf, 0xb2, 0xc9, 0xae, 0xc4, 0x2c, 0x04, 0x99, 0xcd, 0x35, 0xd0, 0x3f, 0x04, 0xf7,
-	0x2d, 0x15, 0x24, 0x26, 0x82, 0xe0, 0x4b, 0x68, 0x15, 0xe1, 0xbe, 0xb5, 0x63, 0x0d, 0xda, 0x43,
-	0x2f, 0xd0, 0x04, 0x41, 0x4e, 0x10, 0x5c, 0xe4, 0x88, 0xf0, 0x0e, 0xec, 0xff, 0x08, 0x30, 0xa2,
-	0xe2, 0x37, 0x1a, 0x09, 0xc6, 0x5f, 0xe0, 0x63, 0xb0, 0x3e, 0xa8, 0xf3, 0x56, 0x68, 0x7d, 0x90,
-	0xd6, 0xb2, 0x6f, 0x6b, 0x6b, 0x29, 0xad, 0xdb, 0xfe, 0x23, 0x6d, 0xdd, 0xfa, 0xc7, 0xb0, 0x35,
-	0xa2, 0xe2, 0xd7, 0x8c, 0x08, 0xca, 0xd3, 0x84, 0xa5, 0x0f, 0x3f, 0x2a, 0xad, 0x9b, 0x7e, 0x53,
-	0x5b, 0x37, 0xfe, 0x3f, 0x36, 0xb4, 0x46, 0x54, 0x8c, 0xaf, 0x7e, 0xa7, 0x91, 0xc0, 0xcf, 0xa0,
-	0xc5, 0xd4, 0xd3, 0x65, 0x12, 0x2b, 0xb6, 0x56, 0xe8, 0x6a, 0xc7, 0x69, 0x8c, 0x9f, 0x82, 0xcb,
-	0x6e, 0x52, 0xca, 0x65, 0xcc, 0x56, 0xb1, 0x4d, 0x65, 0x9f, 0xc6, 0x18, 0x80, 0x3b, 0x67, 0x8b,
-	0x44, 0x24, 0x2c, 0x55, 0x89, 0xda, 0x43, 0x0c, 0x74, 0x23, 0x83, 0xbb, 0xf2, 0xc2, 0x02, 0x83,
-	0x7b, 0xe0, 0x72, 0x26, 0x88, 0xc2, 0x37, 0x15, 0xfe, 0x49, 0x09, 0x7f, 0x57, 0x56, 0x58, 0xc0,
-	0x70, 0x00, 0x1b, 0x8b, 0x88, 0x4c, 0x69, 0x7f, 0xe3, 0x3f, 0xf9, 0x35, 0x00, 0xbf, 0x85, 0xa6,
-	0x58, 0xce, 0x69, 0xdf, 0xd9, 0xb1, 0x06, 0x9d, 0xe1, 0xd3, 0x12, 0x50, 0x57, 0x19, 0x5c, 0x2c,
-	0xe7, 0x34, 0x54, 0x18, 0xdc, 0x03, 0x88, 0xd8, 0x6c, 0xce, 0x52, 0x9a, 0x8a, 0x45, 0x7f, 0x73,
-	0xe7, 0xd1, 0xa0, 0x3d, 0xdc, 0xce, 0x4f, 0xbc, 0xce, 0x23, 0x61, 0x09, 0xe4, 0x0f, 0xa0, 0x29,
-	0x09, 0x10, 0xc0, 0xd9, 0x1f, 0x9d, 0xbe, 0xdd, 0xff, 0xa5, 0xd7, 0x40, 0x17, 0x9a, 0x6f, 0xc6,
-	0xe3, 0xc3, 0x9e, 0x25, 0xbd, 0xc7, 0xe1, 0xf8, 0xdd, 0xe8, 0xb0, 0x67, 0xfb, 0x7f, 0xd8, 0xd0,
-	0x2a, 0x38, 0xf0, 0x27, 0x70, 0x48, 0x9a, 0xcc, 0xc8, 0xd4, 0x28, 0xe4, 0xcb, 0xb5, 0x34, 0xc1,
-	0xbe, 0x8a, 0x17, 0xf6, 0x49, 0x23, 0x34, 0x47, 0xf0, 0x07, 0x68, 0x4e, 0x18, 0xd3, 0x7d, 0x6f,
-	0x0f, 0x9f, 0xad, 0x1f, 0x7d, 0xc3, 0x58, 0x5c, 0x3e, 0xa8, 0xe0, 0x32, 0xe7, 0x35, 0x67, 0x59,
-	0x1a, 0x9b, 0xa9, 0xd4, 0xe4, 0x3c, 0x56, 0xf1, 0x95, 0x9c, 0xfa, 0x88, 0xf7, 0x1c, 0xba, 0x95,
-	0x0b, 0x21, 0x42, 0x73, 0x9a, 0x4c, 0xa8, 0x11, 0x9a, 0x7a, 0xf6, 0xba, 0xb0, 0xb5, 0x92, 0xdc,
-	0xdb, 0x86, 0x6e, 0x85, 0xf4, 0xc0, 0xd1, 0x23, 0xf1, 0xff, 0x6e, 0x81, 0x73, 0x46, 0xa2, 0xf7,
-	0x54, 0xe0, 0x77, 0xe0, 0xce, 0xcc, 0xfb, 0x63, 0x1a, 0xd2, 0xcb, 0x2f, 0x97, 0xbf, 0x57, 0x61,
-	0x81, 0xc0, 0x13, 0xd8, 0x8a, 0x38, 0x25, 0x82, 0x5e, 0x6a, 0x39, 0x9a, 0x46, 0x14, 0xf5, 0x68,
-	0xd2, 0xe0, 0xb5, 0xc2, 0xe8, 0x31, 0x6b, 0xd7, 0x49, 0x23, 0x7c, 0x1c, 0x95, 0xbc, 0x38, 0x82,
-	0x6e, 0x36, 0x8f, 0x25, 0x53, 0x45, 0xb1, 0x5f, 0x55, 0xb8, 0xde, 0x29, 0xd4, 0x99, 0x01, 0x15,
-	0x6c, 0x9d, 0x6c, 0xc5, 0x5f, 0xe2, 0xab, 0x28, 0xba, 0x9e, 0x2f, 0x34, 0xa0, 0x2a, 0x5f, 0xee,
-	0xc7, 0x9f, 0xa1, 0x13, 0xd3, 0x85, 0xe0, 0x6c, 0x99, 0x97, 0xaa, 0x05, 0xef, 0x57, 0xe8, 0x0e,
-	0x35, 0xa8, 0x52, 0xeb, 0x56, 0x5c, 0x76, 0xe3, 0x2b, 0x00, 0xa9, 0x83, 0x4b, 0x59, 0x7f, 0xaa,
-	0x5e, 0x88, 0xf6, 0xf0, 0x8b, 0x0a, 0x91, 0x1c, 0xde, 0x91, 0x8c, 0x17, 0x24, 0xad, 0x49, 0xee,
-	0x92, 0x7d, 0x37, 0xd5, 0x19, 0xed, 0x6e, 0xd6, 0xf6, 0x5d, 0xd7, 0xa6, 0xd5, 0x72, 0xd7, 0xf7,
-	0xac, 0xe4, 0xc5, 0x0b, 0xd8, 0xce, 0xfb, 0x4e, 0x38, 0x99, 0x51, 0x41, 0xf9, 0xa2, 0xef, 0x2a,
-	0xb6, 0xe7, 0xf5, 0x9d, 0x2f, 0x60, 0x05, 0x63, 0x2f, 0xab, 0x44, 0xbc, 0x57, 0x80, 0xeb, 0x33,
-	0xc7, 0x6f, 0xc0, 0x31, 0xbd, 0xd3, 0xca, 0xda, 0x5e, 0xdb, 0x01, 0xa1, 0x01, 0x78, 0x11, 0x7c,
-	0x5c, 0x37, 0xe8, 0xfb, 0x37, 0x61, 0x79, 0xdd, 0xd9, 0xff, 0xbf, 0xee, 0xbc, 0x49, 0x9e, 0x64,
-	0x75, 0xfa, 0xf7, 0x27, 0x29, 0xef, 0x48, 0xfb, 0x41, 0x3b, 0xd2, 0x1b, 0xc2, 0x47, 0x35, 0xb2,
-	0xb8, 0x37, 0x8d, 0x77, 0x0e, 0xdd, 0x8a, 0x02, 0xf0, 0x13, 0xd8, 0x54, 0xaa, 0x29, 0xd0, 0x8e,
-	0x34, 0x4f, 0x63, 0xfc, 0x1a, 0x36, 0x64, 0xaf, 0xb9, 0xb9, 0x4f, 0x4d, 0x5b, 0x75, 0xdc, 0x3b,
-	0x02, 0x5c, 0x97, 0xc4, 0xfd, 0xe5, 0xe6, 0xab, 0xc5, 0x2e, 0xad, 0x96, 0x3f, 0x2d, 0x78, 0x5a,
-	0x2f, 0x06, 0x1c, 0x03, 0x94, 0x74, 0x64, 0xa9, 0xc5, 0xbd, 0xfb, 0x20, 0x1d, 0x05, 0x85, 0x23,
-	0x2c, 0x51, 0x78, 0x7b, 0xd0, 0x2a, 0x02, 0xf8, 0x39, 0xb8, 0x22, 0x89, 0xde, 0x73, 0x22, 0xcc,
-	0xae, 0x3b, 0x69, 0x84, 0x85, 0x27, 0xdf, 0x66, 0xf9, 0xef, 0xf0, 0x25, 0x38, 0x47, 0x2a, 0x31,
-	0x06, 0xe0, 0x9c, 0x0b, 0x4e, 0xc9, 0x0c, 0x3b, 0xab, 0x77, 0xf1, 0x2a, 0xb6, 0xdf, 0x18, 0x58,
-	0xdf, 0x5b, 0x07, 0x81, 0xfa, 0xfb, 0x31, 0xa1, 0x03, 0xc3, 0x72, 0x66, 0xfd, 0x65, 0x3f, 0xd1,
-	0x8f, 0xc1, 0x79, 0xc4, 0x93, 0xb9, 0x58, 0x04, 0x67, 0xf2, 0x2b, 0x62, 0x71, 0xe5, 0xa8, 0xaf,
-	0x89, 0x17, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0x7e, 0xf0, 0x1a, 0x04, 0xb6, 0x08, 0x00, 0x00,
+	// 853 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x55, 0xdd, 0x6e, 0xdc, 0x44,
+	0x14, 0x8e, 0x9d, 0xc4, 0xf5, 0x9e, 0x34, 0x9b, 0x74, 0x68, 0x91, 0x65, 0x40, 0x84, 0x85, 0x4a,
+	0x11, 0x42, 0x0e, 0xd9, 0x4a, 0x55, 0x24, 0xc4, 0x05, 0x69, 0x23, 0xb6, 0x42, 0x0d, 0x61, 0x12,
+	0xb8, 0x8d, 0x26, 0xf6, 0xc9, 0xd6, 0xea, 0xfa, 0x47, 0xe3, 0x31, 0x6d, 0xfa, 0x00, 0x3c, 0x05,
+	0xbc, 0x00, 0x8f, 0xc5, 0x1b, 0xf0, 0x06, 0x68, 0xfe, 0xbc, 0x5e, 0xaf, 0x93, 0xac, 0xb8, 0xda,
+	0x39, 0x67, 0xbe, 0xf9, 0xce, 0xdf, 0xb7, 0xc7, 0x30, 0xe4, 0xc8, 0x66, 0x22, 0xcd, 0x30, 0x2a,
+	0x79, 0x21, 0x0a, 0xe2, 0x21, 0xaf, 0x05, 0xcb, 0xc3, 0xcf, 0xa7, 0x45, 0x31, 0x9d, 0xe1, 0x81,
+	0xf2, 0x5e, 0xd5, 0xd7, 0x07, 0x12, 0x53, 0x09, 0x96, 0x95, 0x1a, 0x38, 0x7a, 0x09, 0xfe, 0x6b,
+	0x14, 0x2c, 0x61, 0x82, 0x91, 0x23, 0x18, 0x34, 0xd7, 0x81, 0xb3, 0xe7, 0xec, 0x6f, 0x8d, 0xc3,
+	0x48, 0x13, 0x44, 0x96, 0x20, 0xba, 0xb0, 0x08, 0x3a, 0x07, 0x8f, 0x9e, 0x03, 0x9c, 0xa2, 0xf8,
+	0x0d, 0x63, 0x51, 0xf0, 0x67, 0xe4, 0x21, 0x38, 0xef, 0xd5, 0x7b, 0x87, 0x3a, 0xef, 0xa5, 0x75,
+	0x13, 0xb8, 0xda, 0xba, 0x91, 0xd6, 0x87, 0x60, 0x5d, 0x5b, 0x1f, 0x46, 0x3f, 0xc2, 0xf6, 0x29,
+	0x8a, 0x5f, 0x6a, 0x26, 0x90, 0xe7, 0x69, 0x91, 0xaf, 0xfe, 0x54, 0x5a, 0xef, 0x82, 0x0d, 0x6d,
+	0xbd, 0x1b, 0xfd, 0xeb, 0xc1, 0xe0, 0x45, 0x91, 0x95, 0x45, 0x8e, 0xb9, 0x20, 0x47, 0xb0, 0x59,
+	0x95, 0x2c, 0x46, 0x53, 0xc4, 0x5e, 0xa4, 0xbb, 0x11, 0x35, 0x88, 0xe8, 0x5c, 0x5e, 0x37, 0xe6,
+	0x64, 0x8d, 0xea, 0x07, 0xe4, 0x04, 0x40, 0x1d, 0x2e, 0x65, 0x6d, 0x2a, 0xf4, 0xd6, 0xf8, 0xab,
+	0x5b, 0x9e, 0xcb, 0x4e, 0xb4, 0x29, 0x06, 0x95, 0xf5, 0x92, 0xef, 0xc0, 0x7b, 0x23, 0x07, 0xf2,
+	0x46, 0xe5, 0xbb, 0x35, 0xfe, 0x62, 0x99, 0x62, 0xa2, 0xee, 0xdb, 0xef, 0xcd, 0x13, 0x9d, 0x3d,
+	0x62, 0xa2, 0xaa, 0xbb, 0x25, 0x7b, 0xc4, 0xa4, 0x93, 0x3d, 0x62, 0x22, 0xc3, 0x72, 0xcc, 0x13,
+	0xe4, 0xc1, 0xe6, 0x6d, 0x61, 0xa9, 0xba, 0x5f, 0x08, 0xab, 0x9f, 0x84, 0x7f, 0x39, 0x30, 0x5c,
+	0x6c, 0x0b, 0x89, 0xc0, 0x2f, 0x8b, 0x2a, 0x15, 0x69, 0x91, 0x9b, 0x42, 0x88, 0x65, 0x9c, 0x8f,
+	0x9b, 0x36, 0x18, 0x72, 0x08, 0x3e, 0x2f, 0x04, 0x53, 0x78, 0x9d, 0xfc, 0x93, 0x16, 0x7e, 0x3e,
+	0x66, 0xda, 0xc0, 0xc8, 0x3e, 0x6c, 0x56, 0x31, 0x9b, 0xa1, 0xc9, 0xb8, 0x8f, 0x5f, 0x03, 0xc2,
+	0x3f, 0x1c, 0x20, 0xcb, 0x7d, 0xff, 0xff, 0xa2, 0x25, 0xcf, 0xad, 0x4a, 0xdc, 0xd5, 0x54, 0x62,
+	0x34, 0x12, 0x3e, 0x85, 0x9d, 0xce, 0xf0, 0x08, 0x81, 0x8d, 0x59, 0x7a, 0x8d, 0x46, 0xb9, 0xea,
+	0x1c, 0xbe, 0x92, 0xed, 0x6c, 0xcf, 0x89, 0x7c, 0x06, 0x90, 0x15, 0xbf, 0xe3, 0xa5, 0x9e, 0xae,
+	0xc6, 0x0e, 0xa4, 0x47, 0xe1, 0x48, 0x00, 0x0f, 0xd8, 0x34, 0x9d, 0xa5, 0xc2, 0x6a, 0xde, 0x9a,
+	0xe1, 0xf7, 0xb0, 0x73, 0xc1, 0xf8, 0x14, 0xc5, 0x9c, 0xeb, 0x6b, 0xf0, 0x84, 0x72, 0x99, 0x9a,
+	0xfb, 0x1a, 0x67, 0x10, 0xe1, 0x6b, 0xd8, 0xe9, 0x8c, 0x9d, 0xec, 0xc2, 0x3a, 0x37, 0x39, 0xb8,
+	0x54, 0x1e, 0xc9, 0x63, 0xd8, 0x9c, 0x72, 0xc4, 0x5c, 0xc5, 0x76, 0xa9, 0x36, 0x64, 0x61, 0x57,
+	0xb3, 0x1a, 0xd5, 0xf4, 0x5d, 0xaa, 0xce, 0xc7, 0x1e, 0x6c, 0x88, 0x9b, 0x12, 0x47, 0xff, 0xf8,
+	0xe0, 0x9d, 0xb1, 0xf8, 0x2d, 0x0a, 0xf2, 0x0d, 0xf8, 0x99, 0xd9, 0x22, 0x26, 0x9f, 0x5d, 0x9b,
+	0x8f, 0xdd, 0x2e, 0xb4, 0x41, 0x90, 0x09, 0x6c, 0xc7, 0x1c, 0x99, 0xc0, 0x4b, 0xcc, 0x85, 0x2d,
+	0xb7, 0xa5, 0x56, 0x4d, 0x1a, 0xbd, 0x50, 0x98, 0x13, 0x05, 0xd1, 0xae, 0xc9, 0x1a, 0x7d, 0x18,
+	0xb7, 0xbc, 0xe4, 0x14, 0x76, 0xea, 0x32, 0x91, 0x4c, 0x1d, 0x9d, 0x7e, 0xd9, 0xe1, 0xfa, 0x55,
+	0xa1, 0xce, 0x0c, 0xa8, 0x61, 0x1b, 0xd6, 0x0b, 0xfe, 0x16, 0x5f, 0x47, 0xc7, 0xfd, 0x7c, 0xd4,
+	0x80, 0xba, 0x7c, 0xd6, 0x4f, 0x7e, 0x82, 0x61, 0x82, 0x95, 0xe0, 0xc5, 0x8d, 0x2d, 0x55, 0xcb,
+	0x7c, 0xd4, 0xa1, 0x7b, 0xa9, 0x41, 0x9d, 0x5a, 0xb7, 0x93, 0xb6, 0x5b, 0xb6, 0xcd, 0x24, 0xc7,
+	0xf2, 0x34, 0x63, 0xb3, 0xe0, 0x41, 0x6f, 0xdb, 0x74, 0x6a, 0x3f, 0x28, 0xc8, 0xbc, 0x6d, 0x75,
+	0xcb, 0x4b, 0x2e, 0xe0, 0x91, 0x6d, 0x1b, 0xe3, 0x2c, 0x43, 0x81, 0xbc, 0x0a, 0x7c, 0xc5, 0xf6,
+	0xb4, 0xbf, 0x71, 0x0d, 0xac, 0x61, 0xdc, 0xad, 0x3b, 0x37, 0x61, 0x02, 0x64, 0x79, 0x64, 0xe4,
+	0x13, 0x18, 0xe8, 0xd2, 0x2f, 0x53, 0xad, 0xb7, 0x0d, 0xea, 0x6b, 0xc7, 0xab, 0x84, 0x1c, 0x02,
+	0xc4, 0x56, 0x93, 0x55, 0xe0, 0xee, 0xad, 0xef, 0x6f, 0x8d, 0x1f, 0x2d, 0xfd, 0x0f, 0x69, 0x0b,
+	0x14, 0xc6, 0xf0, 0xb8, 0x6f, 0x98, 0x77, 0xc7, 0x69, 0x2f, 0x32, 0xf7, 0xfe, 0x45, 0x16, 0x5e,
+	0xdb, 0x20, 0x8b, 0x13, 0xbe, 0xaf, 0x98, 0xf9, 0xf6, 0x73, 0x57, 0xda, 0x7e, 0xe1, 0x18, 0x3e,
+	0xea, 0x19, 0xfd, 0x9d, 0x61, 0xc2, 0x13, 0x20, 0xcb, 0x23, 0xbe, 0x3b, 0x33, 0xbb, 0x9e, 0xdc,
+	0xd6, 0x7a, 0xfa, 0xd3, 0x81, 0x8f, 0xfb, 0x87, 0x4b, 0x7e, 0x06, 0x68, 0xe9, 0xc2, 0x51, 0x53,
+	0x39, 0x58, 0x49, 0x17, 0x51, 0xe3, 0xa0, 0x2d, 0x8a, 0xf0, 0x10, 0x06, 0xcd, 0x05, 0xf9, 0x14,
+	0x7c, 0x91, 0xc6, 0x6f, 0x39, 0x13, 0x66, 0x5f, 0x4e, 0xd6, 0x68, 0xe3, 0xb1, 0xcb, 0xc5, 0xfe,
+	0x8e, 0x8f, 0xc0, 0x3b, 0x51, 0x81, 0x49, 0x04, 0xde, 0xb9, 0xe0, 0xc8, 0x32, 0x32, 0x5c, 0xcc,
+	0x25, 0xec, 0xd8, 0xa3, 0xb5, 0x7d, 0xe7, 0x5b, 0xe7, 0x38, 0x52, 0xda, 0x32, 0x57, 0xc7, 0x86,
+	0xe5, 0xcc, 0xf9, 0xdb, 0x7d, 0xa2, 0x8f, 0xd1, 0x79, 0xcc, 0xd3, 0x52, 0x54, 0xd1, 0x99, 0xfc,
+	0x4a, 0x54, 0x57, 0x9e, 0xfa, 0x5a, 0x3c, 0xfb, 0x2f, 0x00, 0x00, 0xff, 0xff, 0xf4, 0x26, 0x00,
+	0x02, 0x4b, 0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.

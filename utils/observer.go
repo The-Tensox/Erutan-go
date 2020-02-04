@@ -30,8 +30,16 @@ type (
 	}
 )
 
+func (e *Event) ID() EventID {
+	return e.eventID
+}
+
+func (e *Event) Value() interface{} {
+	return e.value
+}
+
 const (
-	FoodMoved EventID = iota
+	ClientJoined EventID = iota
 	AnimalReproduced
 	AnimalDied
 	// ...

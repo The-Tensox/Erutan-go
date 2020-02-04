@@ -39,6 +39,6 @@ func RunMain() {
 
 func main() {
 	flags()
-	utils.InitializeConfig(35)
+	utils.InitializeConfig(10)
 	RunMain()
 }

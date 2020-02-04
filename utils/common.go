@@ -11,6 +11,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	erutan "github.com/user/erutan/protos/realtime"
 	"golang.org/x/net/context"
 )
 
@@ -82,4 +83,8 @@ func Update(fn func(deltaTime int64) bool) {
 			lastUpdate = time.Now().Unix()
 		}
 	}()
+}
+
+func RandomPositionInsideCircle(radius float64) *erutan.NetVector3 {
+	return &erutan.NetVector3{X: rand.Float64() * radius, Y: 1, Z: rand.Float64() * radius}
 }

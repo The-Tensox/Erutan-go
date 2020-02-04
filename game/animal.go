@@ -1,140 +1,68 @@
 package game
 
 import (
-	"github.com/golang/protobuf/ptypes"
 	erutan "github.com/user/erutan/protos/realtime"
 	"github.com/user/erutan/utils"
+
+	"github.com/user/erutan/ecs"
 )
 
-type Animal struct {
-	*AbstractBehaviour
-	Target           string
-	previousPosition erutan.NetVector3
+type Herbivorous struct {
+	ecs.BasicEntity
+	erutan.Component_SpaceComponent
+	erutan.Component_HealthComponent
+	erutan.Component_TargetComponent
+	erutan.Component_RenderComponent
 }
 
-// NewAnimal instanciate an animal
-func NewAnimal(target string, position erutan.NetVector3) *Animal {
-	b := &AbstractBehaviour{
-		Object: erutan.NetObject{
-			ObjectId: utils.RandomString(),
-			OwnerId:  "server",
-			Position: &position,
-			Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
-			Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
-			Type:     erutan.NetObject_ANIMAL,
-			Components: []*erutan.Component{&erutan.Component{
-				Type: &erutan.Component_Animal{Animal: &erutan.Component_AnimalComponent{
-					Life: 20,
-				}}},
-			},
-		},
+type reachTargetEntity struct {
+	*ecs.BasicEntity
+	*erutan.Component_SpaceComponent
+	*erutan.Component_TargetComponent
+}
+
+type ReachTargetSystem struct {
+	entities []reachTargetEntity
+}
+
+func (r *ReachTargetSystem) Add(basic *ecs.BasicEntity,
+	space *erutan.Component_SpaceComponent,
+	target *erutan.Component_TargetComponent) {
+	r.entities = append(r.entities, reachTargetEntity{basic, space, target})
+}
+
+// Remove removes the Entity from the System. This is what most Remove methods will look like
+func (r *ReachTargetSystem) Remove(basic ecs.BasicEntity) {
+	var delete int = -1
+	for index, entity := range r.entities {
+		if entity.ID() == basic.ID() {
+			delete = index
+			break
+		}
 	}
-	a := &Animal{
-		AbstractBehaviour: b,
-		Target:            target,
-		previousPosition:  position,
-	}
-	a.Behaviour = a
-	return a
-}
-
-// Start is used to initialize your object
-func (a *Animal) Start() {
-	a.Update()
-}
-
-// Update is used to handle this object life loop
-func (a *Animal) Update() {
-	utils.Update(func(deltaTime int64) bool {
-		//utils.DebugLogf("%v", utils.Config.TickRate)
-		GameManagerInstance.StatesMtx.RLock()
-		target := GameManagerInstance.State[a.Target].Object.Position
-		GameManagerInstance.StatesMtx.RUnlock()
-		//StatesMtx.Lock()
-		/*
-			r := LookAtTwo(*a.Object.Position, *a.Target.Position)[3]
-			yaw, pitch, roll := r[0], r[1], r[2]
-			finalRotation := ToQuaternion(yaw, pitch, roll)
-			State[a.Object.ObjectId].Rotation = &finalRotation
-		*/
-
-		distance := utils.Distance(*a.AbstractBehaviour.Object.Position, *target)
-		*a.AbstractBehaviour.Object.Position = utils.Add(*a.AbstractBehaviour.Object.Position,
-			utils.Div(utils.Sub(*target, *a.AbstractBehaviour.Object.Position) /*float64(deltaTime)**/, distance*10))
-
-		var l float64
-
-		for _, element := range a.AbstractBehaviour.Object.Components {
-			switch c := element.Type.(type) {
-			case *erutan.Component_Animal:
-				c.Animal.Life -= 0.01
-				l = c.Animal.Life
-			}
-		}
-
-		GameManagerInstance.StateUpdate <- a.AbstractBehaviour
-		//}
-
-		/*
-			Broadcast <- erutan.Packet{
-				Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-				Type: &erutan.Packet_UpdateRotation{
-					UpdateRotation: &erutan.Packet_UpdateRotationPacket{
-						ObjectId: a.Object.ObjectId,
-						Rotation: &finalRotation,
-					},
-				},
-			}
-		*/
-		GameManagerInstance.Broadcast <- erutan.Packet{
-			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-			Type: &erutan.Packet_UpdatePosition{
-				UpdatePosition: &erutan.Packet_UpdatePositionPacket{
-					ObjectId: a.AbstractBehaviour.Object.ObjectId,
-					Position: a.AbstractBehaviour.Object.Position,
-				},
-			},
-		}
-		GameManagerInstance.Broadcast <- erutan.Packet{
-			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-			Type: &erutan.Packet_UpdateAnimal{
-				UpdateAnimal: &erutan.Packet_UpdateAnimalPacket{
-					ObjectId: a.AbstractBehaviour.Object.ObjectId,
-					Life:     l,
-				},
-			},
-		}
-
-		if l <= 0 {
-			return true // Dead
-		}
-		return false
-	})
-}
-
-func (a *Animal) OnCollisionEnter(other erutan.NetObject) {
-	// If we collided with food ++ life
-	if other.Type == erutan.NetObject_FOOD {
-
-		var l float64
-		for _, element := range a.AbstractBehaviour.Object.Components {
-			if _, ok := element.Type.(*erutan.Component_Animal); ok {
-				element.GetAnimal().Life += 20
-				l = element.GetAnimal().Life
-			}
-		}
-
-		GameManagerInstance.Broadcast <- erutan.Packet{
-			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-			Type: &erutan.Packet_UpdateAnimal{
-				UpdateAnimal: &erutan.Packet_UpdateAnimalPacket{
-					ObjectId: a.AbstractBehaviour.Object.ObjectId,
-					Life:     l,
-				},
-			},
-		}
+	if delete >= 0 {
+		r.entities = append(r.entities[:delete], r.entities[delete+1:]...)
 	}
 }
 
-// OnDestroy is called before getting destroyed
-func (a *Animal) OnDestroy() {}
+func (r *ReachTargetSystem) Update(dt float64) {
+	for _, entity := range r.entities {
+		// If I don't have a target, let's find one
+		if entity.Target == nil {
+			for _, e := range ManagerInstance.World.Systems() {
+				if f, ok := e.(*EatableSystem); ok {
+					utils.DebugLogf("I'm %v, found a target: %v", entity.Component_SpaceComponent.Position, f.entities[0].Position)
+					entity.Target = f.entities[0].Position // TODO: atm will just rush the first food of the array
+					// Maybe later could finc the nearest, w/e ..
+				}
+			}
+		}
+		if entity.Target == nil {
+			continue // TODO: or move random
+		}
+		distance := utils.Distance(*entity.Position, *entity.Target)
+		newPos := utils.Add(*entity.Position,
+			utils.Div(utils.Sub(*entity.Target, *entity.Position), dt*distance*10))
+		entity.Position = &newPos
+	}
+}
