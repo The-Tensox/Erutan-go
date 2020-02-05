@@ -8,8 +8,8 @@ var (
 
 	// Config stores global Config
 	Config struct {
-		// TickRate defines the Server's tick rate, the lower the faster
-		TickRate float64
+		// TimeScale defines the Server's time scale, the higher the faster
+		TimeScale float64
 
 		// DebugMode name is self explanatory ...
 		DebugMode bool
@@ -20,8 +20,6 @@ var (
 )
 
 // InitializeConfig initialize Config
-func InitializeConfig(tickRate float64) {
-	ConfigMtx.Lock()
-	Config.TickRate = tickRate
-	ConfigMtx.Unlock()
+func InitializeConfig(timeScale float64) {
+	Config.TimeScale = timeScale
 }

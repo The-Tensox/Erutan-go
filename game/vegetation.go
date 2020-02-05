@@ -3,6 +3,7 @@ package game
 import (
 	"github.com/user/erutan/ecs"
 	erutan "github.com/user/erutan/protos/realtime"
+	"github.com/user/erutan/utils"
 )
 
 type AnyObject struct {
@@ -41,9 +42,19 @@ func (e *EatableSystem) Remove(basic ecs.BasicEntity) {
 
 func (e *EatableSystem) Update(dt float64) {
 	/*
-		for _, entity := range v.entities {
+		for _, entity := range e.entities {
 		}
 	*/
 }
 
-// TODO: onnotify observer stuff tleeport
+func (e *EatableSystem) NotifyCallback(event utils.Event) {
+	switch event.EventID {
+	case utils.EntitiesCollided:
+		for _, entity := range e.entities {
+			// Teleport somewhere else
+			entity.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(50)
+			//utils.DebugLogf("%v", event.Value)
+			//utils.DebugLogf("newpos %v", entity.Component_SpaceComponent)
+		}
+	}
+}

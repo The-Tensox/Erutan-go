@@ -78,9 +78,10 @@ message Packet {
     oneof type {
         // General physical entitys
         CreateEntityPacket create_entity = 2;
-        UpdatePositionPacket update_position = 3;
-        UpdateRotationPacket update_rotation = 4;
-        DestroyEntityPacket destroy_entity = 5;
+        UpdateEntityPacket update_entity = 3;
+        UpdatePositionPacket update_position = 4;
+        UpdateRotationPacket update_rotation = 5;
+        DestroyEntityPacket destroy_entity = 6;
 
         // Animals & Environment
         UpdateAnimalPacket update_animal = 7;
@@ -90,6 +91,11 @@ message Packet {
     }
 
     message CreateEntityPacket {
+        uint64 entity_id = 1;
+        repeated Component components = 2; 
+    }
+
+    message UpdateEntityPacket {
         uint64 entity_id = 1;
         repeated Component components = 2; 
     }
@@ -117,7 +123,7 @@ message Packet {
         repeated Parameter parameters = 1;
         message Parameter {
             oneof type {
-                double tickrate = 1;
+                double time_scale = 1;
             }
         }
     }

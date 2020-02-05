@@ -126,7 +126,7 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 		case <-srv.Context().Done():
 			return
 		case res := <-stream:
-			utils.DebugLogf("Sending %v", res)
+			//utils.DebugLogf("Sending %v", res)
 			if s, ok := status.FromError(srv.Send(&res)); ok {
 				switch s.Code() {
 				case codes.OK:

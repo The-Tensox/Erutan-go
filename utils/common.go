@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -72,19 +73,10 @@ func RandomString() string {
 	return fmt.Sprintf("%x", str)
 }
 
-// Update is similar to Unity Updates
-func Update(fn func(deltaTime int64) bool) {
-	go func() {
-		var lastUpdate int64
-		for range time.Tick(time.Duration(Config.TickRate) * time.Millisecond) {
-			if fn(time.Now().Unix() - lastUpdate) {
-				return
-			}
-			lastUpdate = time.Now().Unix()
-		}
-	}()
-}
-
 func RandomPositionInsideCircle(radius float64) *erutan.NetVector3 {
 	return &erutan.NetVector3{X: rand.Float64() * radius, Y: 1, Z: rand.Float64() * radius}
+}
+
+func GetProtoTime() float64 {
+	return float64(ptypes.TimestampNow().Seconds)*math.Pow(10, 9) + float64(ptypes.TimestampNow().Nanos)
 }

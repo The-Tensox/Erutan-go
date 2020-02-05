@@ -25,21 +25,15 @@ type (
 	EventID int
 
 	Event struct {
-		eventID EventID
-		value   interface{}
+		EventID EventID
+		Value   interface{}
 	}
 )
 
-func (e *Event) ID() EventID {
-	return e.eventID
-}
-
-func (e *Event) Value() interface{} {
-	return e.value
-}
-
 const (
 	ClientJoined EventID = iota
+	EntitiesCollided
+	AnimalAte
 	AnimalReproduced
 	AnimalDied
 	// ...
@@ -66,7 +60,7 @@ func (w *Watch) Notify(event Event) {
 
 /*
 Usage:
-func (s Soldier) NotifyCallback(event interface{}) {
+func (s Soldier) NotifyCallback(event Event) {
 	if event.(string) == s.zone {
 		fmt.Printf("Soldier %d, seen an enemy on zone %s\n", s.id, event)
 	}

@@ -4,8 +4,6 @@ import (
 	"math"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes"
-
 	ecs "github.com/user/erutan/ecs"
 	erutan "github.com/user/erutan/protos/realtime"
 	utils "github.com/user/erutan/utils"
@@ -31,6 +29,8 @@ type Manager struct {
 
 	// Receive receive packets from clients
 	Receive chan *erutan.Packet
+
+	Watch utils.Watch
 }
 
 // Initialize returns a thread-safe singleton instance of the game manager
@@ -43,6 +43,7 @@ func Initialize() {
 				ClientStreams: make(map[string]chan erutan.Packet),
 				Broadcast:     make(chan erutan.Packet, 1000),
 				Receive:       make(chan *erutan.Packet, 1000),
+				Watch:         utils.Watch{},
 			}
 	})
 }
@@ -51,10 +52,15 @@ func Initialize() {
 func (m *Manager) Run() {
 	go m.Listen()
 
+	r := &ReachTargetSystem{}
+	e := &EatableSystem{}
 	m.World.AddSystem(&CollisionSystem{})
-	m.World.AddSystem(&ReachTargetSystem{})
-	m.World.AddSystem(&EatableSystem{})
+	m.World.AddSystem(r)
+	m.World.AddSystem(e)
 	m.World.AddSystem(&NetworkSystem{})
+
+	m.Watch.Add(r)
+	m.Watch.Add(e)
 
 	ground := AnyObject{BasicEntity: ecs.NewBasic()}
 	ground.Component_SpaceComponent = erutan.Component_SpaceComponent{
@@ -81,7 +87,7 @@ func (m *Manager) Run() {
 	}
 
 	herbivorous := Herbivorous{BasicEntity: ecs.NewBasic()}
-	herbivorous.Component_HealthComponent = erutan.Component_HealthComponent{Life: 20}
+	herbivorous.Component_HealthComponent = erutan.Component_HealthComponent{Life: 40}
 	herbivorous.Component_SpaceComponent = erutan.Component_SpaceComponent{
 		Position: utils.RandomPositionInsideCircle(50),
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
@@ -101,26 +107,39 @@ func (m *Manager) Run() {
 			sys.Add(&herb.BasicEntity, &herb.Component_SpaceComponent)
 			sys.Add(&ground.BasicEntity, &ground.Component_SpaceComponent)
 		case *ReachTargetSystem:
-			sys.Add(&herbivorous.BasicEntity, &herbivorous.Component_SpaceComponent, &herbivorous.Component_TargetComponent)
+			sys.Add(&herbivorous.BasicEntity,
+				&herbivorous.Component_SpaceComponent,
+				&herbivorous.Component_TargetComponent,
+				&herbivorous.Component_HealthComponent)
 		case *EatableSystem:
 			sys.Add(&herb.BasicEntity, &herb.Component_SpaceComponent)
 		case *NetworkSystem:
-			sys.Add(&herbivorous.BasicEntity, &herbivorous.Component_SpaceComponent)
-			sys.Add(&herb.BasicEntity, &herb.Component_SpaceComponent)
-			sys.Add(&ground.BasicEntity, &ground.Component_SpaceComponent)
+			sys.Add(&herbivorous.BasicEntity, []*erutan.Component{
+				&erutan.Component{Type: &erutan.Component_Space{Space: &herbivorous.Component_SpaceComponent}},
+				&erutan.Component{Type: &erutan.Component_Render{Render: &herbivorous.Component_RenderComponent}},
+				&erutan.Component{Type: &erutan.Component_Health{Health: &herbivorous.Component_HealthComponent}},
+			})
+			sys.Add(&herb.BasicEntity, []*erutan.Component{
+				&erutan.Component{Type: &erutan.Component_Space{Space: &herb.Component_SpaceComponent}},
+				&erutan.Component{Type: &erutan.Component_Render{Render: &herb.Component_RenderComponent}},
+			})
+			sys.Add(&ground.BasicEntity, []*erutan.Component{
+				&erutan.Component{Type: &erutan.Component_Space{Space: &ground.Component_SpaceComponent}},
+				&erutan.Component{Type: &erutan.Component_Render{Render: &ground.Component_RenderComponent}},
+			})
 		case *RenderSystem:
 			sys.Add(&herbivorous.BasicEntity, &herbivorous.Component_RenderComponent)
 			sys.Add(&herb.BasicEntity, &herb.Component_RenderComponent)
 			sys.Add(&ground.BasicEntity, &ground.Component_RenderComponent)
 		}
 	}
-	lastUpdateTime := ptypes.TimestampNow().Nanos
-	for /*i := 0; i < 50; i++*/ {
-		dt := float64(ptypes.TimestampNow().Nanos-lastUpdateTime) / math.Pow(10, 9)
-		if dt > 0.1 {
+	lastUpdateTime := utils.GetProtoTime()
+	for {
+		dt := float64(utils.GetProtoTime()-lastUpdateTime) / math.Pow(10, 9)
+		if dt > 0.02 { // 50fps
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
-			m.World.Update(dt) // 0.125 would be the time in seconds since the last update
-			lastUpdateTime = ptypes.TimestampNow().Nanos
+			m.World.Update(dt * utils.Config.TimeScale)
+			lastUpdateTime = utils.GetProtoTime()
 		}
 	}
 }
@@ -132,6 +151,12 @@ func (m *Manager) Listen() {
 		case p := <-m.Receive:
 			switch t := p.Type.(type) {
 			case *erutan.Packet_UpdateParameters:
+				for _, element := range t.UpdateParameters.Parameters {
+					switch param := element.Type.(type) {
+					case *erutan.Packet_UpdateParametersPacket_Parameter_TimeScale:
+						utils.Config.TimeScale = param.TimeScale
+					}
+				}
 			case *erutan.Packet_CreateEntity:
 			default:
 				utils.DebugLogf("Client sent unimplemented packet: %v", t)
