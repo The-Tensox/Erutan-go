@@ -45,11 +45,12 @@ message Component {
         HealthComponent health = 3;
         SpeedComponent speed = 4;
         RenderComponent render = 5;
+        BehaviourTypeComponent behaviour_type = 6;
     }
     message SpaceComponent {
-        NetVector3 position = 3;
-        NetQuaternion rotation = 4;
-        NetVector3 scale = 5;
+        NetVector3 position = 1;
+        NetQuaternion rotation = 2;
+        NetVector3 scale = 3;
     }
     message SpaceTimeComponent {
         google.protobuf.Timestamp timestamp = 1;
@@ -60,7 +61,6 @@ message Component {
     }
     message SpeedComponent {
         double move_speed = 1;
-        double agility = 2;
     }
     message TargetComponent {
         NetVector3 target = 1;
@@ -69,6 +69,13 @@ message Component {
         float red = 1;
         float green = 2;
         float blue = 3;
+    }
+    message BehaviourTypeComponent {
+        enum BehaviourType {
+            ANIMAL = 0;
+            VEGETATION = 1;
+        }
+        BehaviourType behaviour_type = 1;
     }
 }
 

@@ -10,6 +10,7 @@ type AnyObject struct {
 	ecs.BasicEntity
 	erutan.Component_SpaceComponent
 	erutan.Component_RenderComponent
+	erutan.Component_BehaviourTypeComponent
 }
 
 type eatableEntity struct {
@@ -48,13 +49,20 @@ func (e *EatableSystem) Update(dt float64) {
 }
 
 func (e *EatableSystem) NotifyCallback(event utils.Event) {
-	switch event.EventID {
-	case utils.EntitiesCollided:
-		for _, entity := range e.entities {
+	switch u := event.Value.(type) {
+	case EntitiesCollided:
+		// If an animal collided with me
+		if u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
+			u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			entity.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(50)
-			//utils.DebugLogf("%v", event.Value)
-			//utils.DebugLogf("newpos %v", entity.Component_SpaceComponent)
+			u.b.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(50)
 		}
+
+		if u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
+			u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
+			// Teleport somewhere else
+			u.a.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(50)
+		}
+
 	}
 }

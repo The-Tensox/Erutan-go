@@ -1,6 +1,8 @@
 package game
 
 import (
+	"math"
+
 	erutan "github.com/user/erutan/protos/realtime"
 	"github.com/user/erutan/utils"
 
@@ -28,6 +30,8 @@ type Herbivorous struct {
 	erutan.Component_HealthComponent
 	erutan.Component_TargetComponent
 	erutan.Component_RenderComponent
+	erutan.Component_BehaviourTypeComponent
+	erutan.Component_SpeedComponent
 }
 
 type reachTargetEntity struct {
@@ -35,6 +39,7 @@ type reachTargetEntity struct {
 	*erutan.Component_SpaceComponent
 	*erutan.Component_TargetComponent
 	*erutan.Component_HealthComponent
+	*erutan.Component_SpeedComponent
 }
 
 type ReachTargetSystem struct {
@@ -44,8 +49,9 @@ type ReachTargetSystem struct {
 func (r *ReachTargetSystem) Add(basic *ecs.BasicEntity,
 	space *erutan.Component_SpaceComponent,
 	target *erutan.Component_TargetComponent,
-	health *erutan.Component_HealthComponent) {
-	r.entities = append(r.entities, reachTargetEntity{basic, space, target, health})
+	health *erutan.Component_HealthComponent,
+	speed *erutan.Component_SpeedComponent) {
+	r.entities = append(r.entities, reachTargetEntity{basic, space, target, health, speed})
 }
 
 // Remove removes the Entity from the System. This is what most Remove methods will look like
@@ -64,7 +70,7 @@ func (r *ReachTargetSystem) Remove(basic ecs.BasicEntity) {
 
 func (r *ReachTargetSystem) Update(dt float64) {
 	for _, entity := range r.entities {
-		if AddLife(entity.Component_HealthComponent, -10*dt) {
+		if AddLife(entity.Component_HealthComponent, -3*dt) {
 			utils.DebugLogf("I died, %v", entity.ID())
 			r.Remove(*entity.BasicEntity)
 		}
@@ -73,8 +79,13 @@ func (r *ReachTargetSystem) Update(dt float64) {
 			for _, e := range ManagerInstance.World.Systems() {
 				if f, ok := e.(*EatableSystem); ok {
 					//utils.DebugLogf("I'm %v, found a target: %v", entity.Component_SpaceComponent.Position, f.entities[0].Position)
-					entity.Target = f.entities[0].Position // TODO: atm will just rush the first food of the array
-					// Maybe later could finc the nearest, w/e ..
+					min := &erutan.NetVector3{X: math.MaxFloat64, Y: math.MaxFloat64, Z: math.MaxFloat64}
+					for _, eatableEntity := range f.entities {
+						if utils.Distance(*entity.Position, *eatableEntity.Position) < utils.Distance(*entity.Position, *min) {
+							min = eatableEntity.Position
+						}
+					}
+					entity.Target = min
 				}
 			}
 		}
@@ -82,9 +93,8 @@ func (r *ReachTargetSystem) Update(dt float64) {
 			continue // There is no eatable ?
 		}
 		distance := utils.Distance(*entity.Position, *entity.Target)
-		speed := 20.0
 		newPos := utils.Add(*entity.Position,
-			utils.Mul(utils.Div(utils.Sub(*entity.Target, *entity.Position), distance), dt*speed))
+			utils.Mul(utils.Div(utils.Sub(*entity.Target, *entity.Position), distance), dt*entity.MoveSpeed))
 		//utils.DebugLogf("newpos %v", newPos)
 
 		entity.Position = &newPos
@@ -92,12 +102,72 @@ func (r *ReachTargetSystem) Update(dt float64) {
 }
 
 func (r *ReachTargetSystem) NotifyCallback(event utils.Event) {
-	switch event.EventID {
-	case utils.EntitiesCollided:
+	switch e := event.Value.(type) {
+	case EntitiesCollided:
 		for _, entity := range r.entities {
 			entity.Target = nil // Find a new target
-			AddLife(entity.Component_HealthComponent, 20)
+			AddLife(entity.Component_HealthComponent, 20*e.dt)
 			//utils.DebugLogf("my life %v", entity.Life)
+		}
+	}
+}
+
+type animalReproductionEntity struct {
+	*ecs.BasicEntity
+	me     *Herbivorous
+	target *Herbivorous
+}
+
+type AnimalReproductionSystem struct {
+	entities []animalReproductionEntity
+}
+
+func (a *AnimalReproductionSystem) Add(basic *ecs.BasicEntity,
+	me *Herbivorous,
+	target *Herbivorous) {
+	a.entities = append(a.entities, animalReproductionEntity{basic, me, target})
+}
+
+// Remove removes the Entity from the System. This is what most Remove methods will look like
+func (a *AnimalReproductionSystem) Remove(basic ecs.BasicEntity) {
+	var delete int = -1
+	for index, entity := range a.entities {
+		if entity.ID() == basic.ID() {
+			delete = index
+			break
+		}
+	}
+	if delete >= 0 {
+		a.entities = append(a.entities[:delete], a.entities[delete+1:]...)
+	}
+}
+
+func (a *AnimalReproductionSystem) Update(dt float64) {
+	var first animalReproductionEntity
+	for _, entity := range a.entities {
+		if entity.me.Life > 80 {
+			if first == (animalReproductionEntity{}) {
+				first = entity
+			} else {
+				//utils.DebugLogf("Reproduction mode")
+				entity.target = first.me
+				first.target = entity.me
+				return
+			}
+		}
+		if entity.target != (&Herbivorous{}) {
+			entity.me.Target = entity.target.Position
+		}
+	}
+}
+
+func (a *AnimalReproductionSystem) NotifyCallback(event utils.Event) {
+	switch u := event.Value.(type) {
+	case EntitiesCollided:
+		// If an animal collided with me
+		if u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
+			u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL {
+			// utils.DebugLogf("Reproduction")
 		}
 	}
 }

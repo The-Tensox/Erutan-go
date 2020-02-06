@@ -9,6 +9,7 @@ import (
 type collisionEntity struct {
 	*ecs.BasicEntity
 	*erutan.Component_SpaceComponent
+	*erutan.Component_BehaviourTypeComponent
 }
 
 // CollisionSystem is a system that detects collisions between entities, sends a message if collisions
@@ -18,8 +19,10 @@ type CollisionSystem struct {
 }
 
 // Add adds an entity to the CollisionSystem. To be added, the entity has to have a basic and space component.
-func (c *CollisionSystem) Add(basic *ecs.BasicEntity, space *erutan.Component_SpaceComponent) {
-	c.entities = append(c.entities, collisionEntity{basic, space})
+func (c *CollisionSystem) Add(basic *ecs.BasicEntity,
+	space *erutan.Component_SpaceComponent,
+	behaviourType *erutan.Component_BehaviourTypeComponent) {
+	c.entities = append(c.entities, collisionEntity{basic, space, behaviourType})
 }
 
 // Remove removes an entity from the CollisionSystem.
@@ -40,20 +43,20 @@ func (c *CollisionSystem) Remove(basic ecs.BasicEntity) {
 // If one of the entities are solid, the SpaceComponent is adjusted so that the other entities don't pass through it.
 func (c *CollisionSystem) Update(dt float64) {
 	// O(n²)
-	for i1, e1 := range c.entities {
-		for i2, e2 := range c.entities {
-			if i1 == i2 {
-				continue // with other entities, because we won't collide with ourselves
-			}
+	for i := 0; i < len(c.entities); i++ {
+		for j := i + 1; j < len(c.entities); j++ {
 			// Naïve collision distance < 1
-			if utils.Distance(*e1.Position, *e2.Position) < 1 {
+			if utils.Distance(*c.entities[i].Position, *c.entities[j].Position) < 1 {
 				// Collide
-				ManagerInstance.Watch.Notify(utils.Event{EventID: utils.EntitiesCollided,
-					Value: struct {
-						a collisionEntity
-						b collisionEntity
-					}{a: e1, b: e2}})
+				//utils.DebugLogf("a: %v, b: %v", c.entities[i].BehaviourType, c.entities[j].BehaviourType)
+				ManagerInstance.Watch.Notify(utils.Event{Value: EntitiesCollided{a: c.entities[i], b: c.entities[j], dt: dt}})
 			}
 		}
 	}
+}
+
+type EntitiesCollided struct {
+	a  collisionEntity
+	b  collisionEntity
+	dt float64
 }

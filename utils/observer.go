@@ -25,18 +25,8 @@ type (
 	EventID int
 
 	Event struct {
-		EventID EventID
-		Value   interface{}
+		Value interface{}
 	}
-)
-
-const (
-	ClientJoined EventID = iota
-	EntitiesCollided
-	AnimalAte
-	AnimalReproduced
-	AnimalDied
-	// ...
 )
 
 func (w *Watch) Add(observer Observer) {
