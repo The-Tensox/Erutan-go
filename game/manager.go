@@ -53,18 +53,15 @@ func Initialize() {
 func (m *Manager) Run() {
 	go m.Listen()
 
-	r := &ReachTargetSystem{}
+	h := &HerbivorousSystem{}
 	e := &EatableSystem{}
-	a := &AnimalReproductionSystem{}
 	m.World.AddSystem(&CollisionSystem{})
-	m.World.AddSystem(r)
+	m.World.AddSystem(h)
 	m.World.AddSystem(e)
 	m.World.AddSystem(&NetworkSystem{})
-	m.World.AddSystem(a)
 
-	m.Watch.Add(r)
+	m.Watch.Add(h)
 	m.Watch.Add(e)
-	m.Watch.Add(a)
 
 	id := ecs.NewBasic()
 	ground := AnyObject{BasicEntity: &id}
@@ -139,7 +136,7 @@ func (m *Manager) Run() {
 			switch sys := system.(type) {
 			case *CollisionSystem:
 				sys.Add(herbivorous.BasicEntity, herbivorous.Component_SpaceComponent, herbivorous.Component_BehaviourTypeComponent)
-			case *ReachTargetSystem:
+			case *HerbivorousSystem:
 				sys.Add(herbivorous.BasicEntity,
 					herbivorous.Component_SpaceComponent,
 					herbivorous.Target,
@@ -153,8 +150,6 @@ func (m *Manager) Run() {
 				})
 			case *RenderSystem:
 				sys.Add(herbivorous.BasicEntity, herbivorous.Component_RenderComponent)
-			case *AnimalReproductionSystem:
-				//sys.Add(herbivorous.BasicEntity, &herbivorous, &Herbivorous{})
 			}
 		}
 	}

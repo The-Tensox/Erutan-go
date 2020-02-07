@@ -32,7 +32,7 @@ type Herbivorous struct {
 	*erutan.Component_SpeedComponent
 }
 
-type reachTargetEntity struct {
+type herbivorousEntity struct {
 	*ecs.BasicEntity
 	*erutan.Component_SpaceComponent
 	Target *AnyObject
@@ -40,34 +40,34 @@ type reachTargetEntity struct {
 	*erutan.Component_SpeedComponent
 }
 
-type ReachTargetSystem struct {
-	entities []reachTargetEntity
+type HerbivorousSystem struct {
+	entities []herbivorousEntity
 }
 
-func (r *ReachTargetSystem) Add(basic *ecs.BasicEntity,
+func (h *HerbivorousSystem) Add(basic *ecs.BasicEntity,
 	space *erutan.Component_SpaceComponent,
 	target *AnyObject,
 	health *erutan.Component_HealthComponent,
 	speed *erutan.Component_SpeedComponent) {
-	r.entities = append(r.entities, reachTargetEntity{basic, space, target, health, speed})
+	h.entities = append(h.entities, herbivorousEntity{basic, space, target, health, speed})
 }
 
 // Remove removes the Entity from the System. This is what most Remove methods will look like
-func (r *ReachTargetSystem) Remove(basic ecs.BasicEntity) {
+func (h *HerbivorousSystem) Remove(basic ecs.BasicEntity) {
 	var delete int = -1
-	for index, entity := range r.entities {
+	for index, entity := range h.entities {
 		if entity.ID() == basic.ID() {
 			delete = index
 			break
 		}
 	}
 	if delete >= 0 {
-		r.entities = append(r.entities[:delete], r.entities[delete+1:]...)
+		h.entities = append(h.entities[:delete], h.entities[delete+1:]...)
 	}
 }
 
-func (r *ReachTargetSystem) Update(dt float64) {
-	for indexEntity, entity := range r.entities {
+func (h *HerbivorousSystem) Update(dt float64) {
+	for indexEntity, entity := range h.entities {
 		//utils.DebugLogf("my target %v", entity.Target)
 		if AddLife(entity.Component_HealthComponent, -3*dt) {
 			utils.DebugLogf("I died, %v", entity.ID())
@@ -75,27 +75,26 @@ func (r *ReachTargetSystem) Update(dt float64) {
 		}
 
 		if entity.Life > 80 {
-			for j := indexEntity + 1; j < len(r.entities); j++ {
-				if r.entities[j].Life > 80 {
+			for j := indexEntity + 1; j < len(h.entities); j++ {
+				if h.entities[j].Life > 80 {
 					newTarget := &AnyObject{}
-					newTarget.BasicEntity = r.entities[j].BasicEntity
-					newTarget.Component_SpaceComponent = r.entities[j].Component_SpaceComponent
+					newTarget.BasicEntity = h.entities[j].BasicEntity
+					newTarget.Component_SpaceComponent = h.entities[j].Component_SpaceComponent
 					entity.Target = newTarget
 
 					newTargetTwo := &AnyObject{}
 					newTargetTwo.BasicEntity = entity.BasicEntity
 					newTargetTwo.Component_SpaceComponent = entity.Component_SpaceComponent
-					r.entities[j].Target = newTargetTwo
+					h.entities[j].Target = newTargetTwo
 				}
 			}
 		}
 
 		// If I don't have a target, let's find one
 		if entity.Target == nil {
-			//utils.DebugLogf("entitytarget %v", entity.Target)
 			for _, e := range ManagerInstance.World.Systems() {
 				if f, ok := e.(*EatableSystem); ok {
-					minPosition := f.entities[0] //erutan.NetVector3{X: math.MaxFloat64, Y: math.MaxFloat64, Z: math.MaxFloat64}
+					minPosition := f.entities[0]
 					for _, eatableEntity := range f.entities {
 						if utils.Distance(*entity.Position, *eatableEntity.Position) < utils.Distance(*entity.Position, *minPosition.Position) {
 							minPosition = eatableEntity
@@ -105,7 +104,6 @@ func (r *ReachTargetSystem) Update(dt float64) {
 					newTarget.Component_SpaceComponent = minPosition.Component_SpaceComponent
 					newTarget.BasicEntity = minPosition.BasicEntity
 					entity.Target = newTarget
-					//utils.DebugLogf("I'm %v, found a target: %v", entity.ID(), entity.Target)
 				}
 			}
 		}
@@ -122,25 +120,25 @@ func (r *ReachTargetSystem) Update(dt float64) {
 	}
 }
 
-func (r *ReachTargetSystem) Find(id uint64) *reachTargetEntity {
-	for _, entity := range r.entities {
+func (h *HerbivorousSystem) Find(id uint64) *herbivorousEntity {
+	for _, entity := range h.entities {
 		if entity.ID() == id {
 			return &entity
 		}
 	}
 	return nil
 }
-func (r *ReachTargetSystem) NotifyCallback(event utils.Event) {
+func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
 	switch e := event.Value.(type) {
 	case EntitiesCollided:
-		a := r.Find(e.a.ID())
-		b := r.Find(e.b.ID())
+		a := h.Find(e.a.ID())
+		b := h.Find(e.b.ID())
 		if e.a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION &&
 			e.b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL {
 			AddLife(b.Component_HealthComponent, 20)
 
 			// Reset target for everyone that had this target
-			for _, e := range r.entities {
+			for _, e := range h.entities {
 				if (e.Target != nil && a != nil) && (e.Target.ID() == a.ID()) {
 					utils.DebugLogf("set nil")
 					e.Target = nil
@@ -151,7 +149,7 @@ func (r *ReachTargetSystem) NotifyCallback(event utils.Event) {
 			AddLife(a.Component_HealthComponent, 20)
 
 			// Reset target for everyone that had this target
-			for _, e := range r.entities {
+			for _, e := range h.entities {
 				if (e.Target != nil && b != nil) && (e.Target.ID() == b.ID()) {
 					utils.DebugLogf("set nil")
 					e.Target = nil
@@ -173,69 +171,5 @@ func (r *ReachTargetSystem) NotifyCallback(event utils.Event) {
 			}
 		}
 		//}
-	}
-}
-
-type animalReproductionEntity struct {
-	*ecs.BasicEntity
-	me     *Herbivorous
-	target *Herbivorous
-}
-
-type AnimalReproductionSystem struct {
-	entities []animalReproductionEntity
-}
-
-func (a *AnimalReproductionSystem) Add(basic *ecs.BasicEntity,
-	me *Herbivorous,
-	target *Herbivorous) {
-	a.entities = append(a.entities, animalReproductionEntity{basic, me, target})
-}
-
-// Remove removes the Entity from the System. This is what most Remove methods will look like
-func (a *AnimalReproductionSystem) Remove(basic ecs.BasicEntity) {
-	var delete int = -1
-	for index, entity := range a.entities {
-		if entity.ID() == basic.ID() {
-			delete = index
-			break
-		}
-	}
-	if delete >= 0 {
-		a.entities = append(a.entities[:delete], a.entities[delete+1:]...)
-	}
-}
-
-func (a *AnimalReproductionSystem) Update(dt float64) {
-	for i := 0; i < len(a.entities); i++ {
-		if a.entities[i].me.Life > 80 {
-			for j := i + 1; j < len(a.entities); j++ {
-				if a.entities[j].me.Life > 80 {
-					//utils.DebugLogf("i %v, %v, j %v, %v", i, a.entities[i].me.Life, j, a.entities[j].me.Life)
-					//a.entities[i].target = a.entities[j].me
-					//a.entities[j].target = a.entities[i].me
-					newTarget := &AnyObject{}
-					newTarget.BasicEntity = a.entities[j].me.BasicEntity
-					newTarget.Component_SpaceComponent = a.entities[j].me.Component_SpaceComponent
-					a.entities[i].me.Target = newTarget
-
-					newTargetTwo := &AnyObject{}
-					newTargetTwo.BasicEntity = a.entities[i].me.BasicEntity
-					newTargetTwo.Component_SpaceComponent = a.entities[i].me.Component_SpaceComponent
-					a.entities[j].me.Target = newTargetTwo
-				}
-			}
-		}
-	}
-}
-
-func (a *AnimalReproductionSystem) NotifyCallback(event utils.Event) {
-	switch u := event.Value.(type) {
-	case EntitiesCollided:
-		// If an animal collided with me
-		if u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
-			u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL {
-			// utils.DebugLogf("Reproduction")
-		}
 	}
 }
