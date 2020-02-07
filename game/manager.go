@@ -111,47 +111,7 @@ func (m *Manager) Run() {
 	}
 
 	for i := 0; i < 5; i++ {
-		id := ecs.NewBasic()
-		herbivorous := Herbivorous{BasicEntity: &id}
-		herbivorous.Component_HealthComponent = &erutan.Component_HealthComponent{Life: 40}
-		herbivorous.Component_SpaceComponent = &erutan.Component_SpaceComponent{
-			Position: utils.RandomPositionInsideCircle(50),
-			Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
-			Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
-		}
-		herbivorous.Target = nil // target
-		herbivorous.Component_RenderComponent = &erutan.Component_RenderComponent{
-			Red:   1,
-			Green: 0,
-			Blue:  0,
-		}
-		herbivorous.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
-			BehaviourType: erutan.Component_BehaviourTypeComponent_ANIMAL,
-		}
-		herbivorous.Component_SpeedComponent = &erutan.Component_SpeedComponent{
-			MoveSpeed: 10 + rand.Float64()*10,
-		}
-		// Add our herbivorous to the appropriate systems
-		for _, system := range m.World.Systems() {
-			switch sys := system.(type) {
-			case *CollisionSystem:
-				sys.Add(herbivorous.BasicEntity, herbivorous.Component_SpaceComponent, herbivorous.Component_BehaviourTypeComponent)
-			case *HerbivorousSystem:
-				sys.Add(herbivorous.BasicEntity,
-					herbivorous.Component_SpaceComponent,
-					herbivorous.Target,
-					herbivorous.Component_HealthComponent,
-					herbivorous.Component_SpeedComponent)
-			case *NetworkSystem:
-				sys.Add(herbivorous.BasicEntity, []*erutan.Component{
-					&erutan.Component{Type: &erutan.Component_Space{Space: herbivorous.Component_SpaceComponent}},
-					&erutan.Component{Type: &erutan.Component_Render{Render: herbivorous.Component_RenderComponent}},
-					&erutan.Component{Type: &erutan.Component_Health{Health: herbivorous.Component_HealthComponent}},
-				})
-			case *RenderSystem:
-				sys.Add(herbivorous.BasicEntity, herbivorous.Component_RenderComponent)
-			}
-		}
+		m.AddHerbivorous(utils.RandomPositionInsideCircle(50))
 	}
 	// Add our entity to the appropriate systems
 	for _, system := range m.World.Systems() {
@@ -202,6 +162,50 @@ func (m *Manager) SyncNewClient(tkn string) {
 		switch sys := system.(type) {
 		case *NetworkSystem:
 			sys.SyncNewClient(tkn)
+		}
+	}
+}
+
+func (m *Manager) AddHerbivorous(position *erutan.NetVector3) {
+	id := ecs.NewBasic()
+	herbivorous := Herbivorous{BasicEntity: &id}
+	herbivorous.Component_HealthComponent = &erutan.Component_HealthComponent{Life: 40}
+	herbivorous.Component_SpaceComponent = &erutan.Component_SpaceComponent{
+		Position: position,
+		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
+		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
+	}
+	herbivorous.Target = nil // target
+	herbivorous.Component_RenderComponent = &erutan.Component_RenderComponent{
+		Red:   1,
+		Green: 0,
+		Blue:  0,
+	}
+	herbivorous.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
+		BehaviourType: erutan.Component_BehaviourTypeComponent_ANIMAL,
+	}
+	herbivorous.Component_SpeedComponent = &erutan.Component_SpeedComponent{
+		MoveSpeed: 10 + rand.Float64()*10,
+	}
+	// Add our herbivorous to the appropriate systems
+	for _, system := range m.World.Systems() {
+		switch sys := system.(type) {
+		case *CollisionSystem:
+			sys.Add(herbivorous.BasicEntity, herbivorous.Component_SpaceComponent, herbivorous.Component_BehaviourTypeComponent)
+		case *HerbivorousSystem:
+			sys.Add(herbivorous.BasicEntity,
+				herbivorous.Component_SpaceComponent,
+				herbivorous.Target,
+				herbivorous.Component_HealthComponent,
+				herbivorous.Component_SpeedComponent)
+		case *NetworkSystem:
+			sys.Add(herbivorous.BasicEntity, []*erutan.Component{
+				&erutan.Component{Type: &erutan.Component_Space{Space: herbivorous.Component_SpaceComponent}},
+				&erutan.Component{Type: &erutan.Component_Render{Render: herbivorous.Component_RenderComponent}},
+				&erutan.Component{Type: &erutan.Component_Health{Health: herbivorous.Component_HealthComponent}},
+			})
+		case *RenderSystem:
+			sys.Add(herbivorous.BasicEntity, herbivorous.Component_RenderComponent)
 		}
 	}
 }

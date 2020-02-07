@@ -167,7 +167,7 @@ func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
 				AddLife(a.Component_HealthComponent, -50)
 				AddLife(b.Component_HealthComponent, -50)
 				//utils.DebugLogf("Repro %v %v", a.Life, b.Life)
-
+				ManagerInstance.AddHerbivorous(a.Position)
 			}
 		}
 		//}
