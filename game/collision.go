@@ -48,7 +48,7 @@ func (c *CollisionSystem) Update(dt float64) {
 			// Naïve collision distance < 1
 			if utils.Distance(*c.entities[i].Position, *c.entities[j].Position) < 1 {
 				// Collide
-				//utils.DebugLogf("a: %v, b: %v", c.entities[i].BehaviourType, c.entities[j].BehaviourType)
+				//utils.DebugLogf("a: %v, b: %v", c.entities[i].ID(), c.entities[j].ID())
 				ManagerInstance.Watch.Notify(utils.Event{Value: EntitiesCollided{a: c.entities[i], b: c.entities[j], dt: dt}})
 			}
 		}

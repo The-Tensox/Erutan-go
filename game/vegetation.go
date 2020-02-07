@@ -7,10 +7,10 @@ import (
 )
 
 type AnyObject struct {
-	ecs.BasicEntity
-	erutan.Component_SpaceComponent
-	erutan.Component_RenderComponent
-	erutan.Component_BehaviourTypeComponent
+	*ecs.BasicEntity
+	*erutan.Component_SpaceComponent
+	*erutan.Component_RenderComponent
+	*erutan.Component_BehaviourTypeComponent
 }
 
 type eatableEntity struct {

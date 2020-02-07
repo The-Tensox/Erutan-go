@@ -66,92 +66,95 @@ func (m *Manager) Run() {
 	m.Watch.Add(e)
 	m.Watch.Add(a)
 
-	ground := AnyObject{BasicEntity: ecs.NewBasic()}
-	ground.Component_SpaceComponent = erutan.Component_SpaceComponent{
+	id := ecs.NewBasic()
+	ground := AnyObject{BasicEntity: &id}
+	ground.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: &erutan.NetVector3{X: 0, Y: 0, Z: 0},
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 		Scale:    &erutan.NetVector3{X: 100, Y: 1, Z: 100},
 	}
-	ground.Component_RenderComponent = erutan.Component_RenderComponent{
+	ground.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   0,
 		Green: 0,
 		Blue:  1,
 	}
 
 	for i := 0; i < 5; i++ {
-		herb := AnyObject{BasicEntity: ecs.NewBasic()}
-		herb.Component_SpaceComponent = erutan.Component_SpaceComponent{
+		id := ecs.NewBasic()
+		herb := AnyObject{BasicEntity: &id}
+		herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 			Position: utils.RandomPositionInsideCircle(50),
 			Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 			Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
 		}
-		herb.Component_RenderComponent = erutan.Component_RenderComponent{
+		herb.Component_RenderComponent = &erutan.Component_RenderComponent{
 			Red:   0,
 			Green: 1,
 			Blue:  0,
 		}
-		herb.Component_BehaviourTypeComponent = erutan.Component_BehaviourTypeComponent{
+		herb.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
 			BehaviourType: erutan.Component_BehaviourTypeComponent_VEGETATION,
 		}
 		// Add our entity to the appropriate systems
 		for _, system := range m.World.Systems() {
 			switch sys := system.(type) {
 			case *CollisionSystem:
-				sys.Add(&herb.BasicEntity, &herb.Component_SpaceComponent, &herb.Component_BehaviourTypeComponent)
+				sys.Add(herb.BasicEntity, herb.Component_SpaceComponent, herb.Component_BehaviourTypeComponent)
 			case *EatableSystem:
-				sys.Add(&herb.BasicEntity, &herb.Component_SpaceComponent)
+				sys.Add(herb.BasicEntity, herb.Component_SpaceComponent)
 			case *NetworkSystem:
-				sys.Add(&herb.BasicEntity, []*erutan.Component{
-					&erutan.Component{Type: &erutan.Component_Space{Space: &herb.Component_SpaceComponent}},
-					&erutan.Component{Type: &erutan.Component_Render{Render: &herb.Component_RenderComponent}},
+				sys.Add(herb.BasicEntity, []*erutan.Component{
+					&erutan.Component{Type: &erutan.Component_Space{Space: herb.Component_SpaceComponent}},
+					&erutan.Component{Type: &erutan.Component_Render{Render: herb.Component_RenderComponent}},
 				})
 			case *RenderSystem:
-				sys.Add(&herb.BasicEntity, &herb.Component_RenderComponent)
+				sys.Add(herb.BasicEntity, herb.Component_RenderComponent)
 			}
 		}
 	}
 
 	for i := 0; i < 5; i++ {
-		herbivorous := Herbivorous{BasicEntity: ecs.NewBasic()}
-		herbivorous.Component_HealthComponent = erutan.Component_HealthComponent{Life: 40}
-		herbivorous.Component_SpaceComponent = erutan.Component_SpaceComponent{
+		id := ecs.NewBasic()
+		herbivorous := Herbivorous{BasicEntity: &id}
+		herbivorous.Component_HealthComponent = &erutan.Component_HealthComponent{Life: 40}
+		herbivorous.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 			Position: utils.RandomPositionInsideCircle(50),
 			Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 			Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
 		}
-		herbivorous.Component_TargetComponent = erutan.Component_TargetComponent{}
-		herbivorous.Component_RenderComponent = erutan.Component_RenderComponent{
+		herbivorous.Target = nil // target
+		herbivorous.Component_RenderComponent = &erutan.Component_RenderComponent{
 			Red:   1,
 			Green: 0,
 			Blue:  0,
 		}
-		herbivorous.Component_BehaviourTypeComponent = erutan.Component_BehaviourTypeComponent{
+		herbivorous.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
 			BehaviourType: erutan.Component_BehaviourTypeComponent_ANIMAL,
 		}
-		herbivorous.Component_SpeedComponent = erutan.Component_SpeedComponent{
-			MoveSpeed: rand.Float64() * 20,
+		herbivorous.Component_SpeedComponent = &erutan.Component_SpeedComponent{
+			MoveSpeed: 10 + rand.Float64()*10,
 		}
 		// Add our herbivorous to the appropriate systems
 		for _, system := range m.World.Systems() {
 			switch sys := system.(type) {
 			case *CollisionSystem:
-				sys.Add(&herbivorous.BasicEntity, &herbivorous.Component_SpaceComponent, &herbivorous.Component_BehaviourTypeComponent)
+				sys.Add(herbivorous.BasicEntity, herbivorous.Component_SpaceComponent, herbivorous.Component_BehaviourTypeComponent)
 			case *ReachTargetSystem:
-				sys.Add(&herbivorous.BasicEntity,
-					&herbivorous.Component_SpaceComponent,
-					&herbivorous.Component_TargetComponent,
-					&herbivorous.Component_HealthComponent,
-					&herbivorous.Component_SpeedComponent)
+				sys.Add(herbivorous.BasicEntity,
+					herbivorous.Component_SpaceComponent,
+					herbivorous.Target,
+					herbivorous.Component_HealthComponent,
+					herbivorous.Component_SpeedComponent)
 			case *NetworkSystem:
-				sys.Add(&herbivorous.BasicEntity, []*erutan.Component{
-					&erutan.Component{Type: &erutan.Component_Space{Space: &herbivorous.Component_SpaceComponent}},
-					&erutan.Component{Type: &erutan.Component_Render{Render: &herbivorous.Component_RenderComponent}},
-					&erutan.Component{Type: &erutan.Component_Health{Health: &herbivorous.Component_HealthComponent}},
+				sys.Add(herbivorous.BasicEntity, []*erutan.Component{
+					&erutan.Component{Type: &erutan.Component_Space{Space: herbivorous.Component_SpaceComponent}},
+					&erutan.Component{Type: &erutan.Component_Render{Render: herbivorous.Component_RenderComponent}},
+					&erutan.Component{Type: &erutan.Component_Health{Health: herbivorous.Component_HealthComponent}},
 				})
 			case *RenderSystem:
-				sys.Add(&herbivorous.BasicEntity, &herbivorous.Component_RenderComponent)
+				sys.Add(herbivorous.BasicEntity, herbivorous.Component_RenderComponent)
 			case *AnimalReproductionSystem:
-				sys.Add(&herbivorous.BasicEntity, &herbivorous, &Herbivorous{})
+				//sys.Add(herbivorous.BasicEntity, &herbivorous, &Herbivorous{})
 			}
 		}
 	}
@@ -159,12 +162,12 @@ func (m *Manager) Run() {
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *NetworkSystem:
-			sys.Add(&ground.BasicEntity, []*erutan.Component{
-				&erutan.Component{Type: &erutan.Component_Space{Space: &ground.Component_SpaceComponent}},
-				&erutan.Component{Type: &erutan.Component_Render{Render: &ground.Component_RenderComponent}},
+			sys.Add(ground.BasicEntity, []*erutan.Component{
+				&erutan.Component{Type: &erutan.Component_Space{Space: ground.Component_SpaceComponent}},
+				&erutan.Component{Type: &erutan.Component_Render{Render: ground.Component_RenderComponent}},
 			})
 		case *RenderSystem:
-			sys.Add(&ground.BasicEntity, &ground.Component_RenderComponent)
+			sys.Add(ground.BasicEntity, ground.Component_RenderComponent)
 		}
 	}
 	lastUpdateTime := utils.GetProtoTime()
