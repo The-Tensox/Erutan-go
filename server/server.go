@@ -159,7 +159,7 @@ func (s *Server) broadcast(ctx context.Context) {
 }
 
 func (s *Server) openStream(tkn string) (stream chan erutan.Packet) {
-	stream = make(chan erutan.Packet, 100)
+	stream = make(chan erutan.Packet, 1000)
 
 	game.ManagerInstance.StreamsMtx.Lock()
 	game.ManagerInstance.ClientStreams[tkn] = stream

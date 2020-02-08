@@ -1,8 +1,11 @@
 package game
 
 import (
+	"math"
+
 	"github.com/golang/protobuf/ptypes"
 	erutan "github.com/user/erutan/protos/realtime"
+	"github.com/user/erutan/utils"
 
 	"github.com/user/erutan/ecs"
 )
@@ -13,7 +16,8 @@ type networkEntity struct {
 }
 
 type NetworkSystem struct {
-	entities []networkEntity
+	entities       []networkEntity
+	lastUpdateTime float64
 }
 
 func (n *NetworkSystem) Add(basic *ecs.BasicEntity, components []*erutan.Component) {
@@ -47,40 +51,20 @@ func (n *NetworkSystem) Remove(basic ecs.BasicEntity) {
 }
 
 func (n *NetworkSystem) Update(dt float64) {
-	for _, entity := range n.entities {
-		// If moved, rotated, rescaled, sync network
-		/*
-			if utils.Distance(*entity.Position, *entity.Component_SpaceTimeComponent.Space.Position) > 1 ||
-				entity.Rotation != entity.Component_SpaceTimeComponent.Space.Rotation ||
-				entity.Scale != entity.Component_SpaceTimeComponent.Space.Scale {
-
-				//utils.DebugLogf("Network space update at %v", ptypes.TimestampNow())
-				// Broadcast on network the update
-				ManagerInstance.Broadcast <- erutan.Packet{
-					Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-					Type: &erutan.Packet_UpdatePosition{
-						UpdatePosition: &erutan.Packet_UpdatePositionPacket{
-							EntityId: entity.ID(),
-							Position: entity.Position, // Refer to the Space component position
-						},
+	if float64(utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.02 {
+		for _, entity := range n.entities {
+			// Broadcast on network the update
+			ManagerInstance.Broadcast <- erutan.Packet{
+				Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+				Type: &erutan.Packet_UpdateEntity{
+					UpdateEntity: &erutan.Packet_UpdateEntityPacket{
+						EntityId:   entity.ID(),
+						Components: entity.components,
 					},
-				}
-				// Refresh last space
-				entity.Component_SpaceTimeComponent = &erutan.Component_SpaceTimeComponent{Space: entity.Space,
-					Timestamp: ptypes.TimestampNow()}
-			}
-		*/
-		// Broadcast on network the update
-		//utils.DebugLogf("Send update entity %v", entity.components)
-		ManagerInstance.Broadcast <- erutan.Packet{
-			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-			Type: &erutan.Packet_UpdateEntity{
-				UpdateEntity: &erutan.Packet_UpdateEntityPacket{
-					EntityId:   entity.ID(),
-					Components: entity.components,
 				},
-			},
+			}
 		}
+		n.lastUpdateTime = utils.GetProtoTime()
 	}
 }
 

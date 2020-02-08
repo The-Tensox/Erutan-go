@@ -80,3 +80,9 @@ func RandomPositionInsideCircle(radius float64) *erutan.NetVector3 {
 func GetProtoTime() float64 {
 	return float64(ptypes.TimestampNow().Seconds)*math.Pow(10, 9) + float64(ptypes.TimestampNow().Nanos)
 }
+
+func DoEvery(d time.Duration, f func(time.Time)) {
+	for x := range time.Tick(d) {
+		f(x)
+	}
+}

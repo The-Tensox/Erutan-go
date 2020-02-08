@@ -4,7 +4,9 @@ import (
 	"math"
 	"math/rand"
 	"sync"
+	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	ecs "github.com/user/erutan/ecs"
 	erutan "github.com/user/erutan/protos/realtime"
 	utils "github.com/user/erutan/utils"
@@ -54,11 +56,22 @@ func (m *Manager) Run() {
 	go m.Listen()
 
 	h := &HerbivorousSystem{}
+	go utils.DoEvery(1*time.Second, func(time.Time) {
+		m.Broadcast <- erutan.Packet{
+			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+			Type: &erutan.Packet_Statistics{
+				Statistics: &erutan.Packet_StatisticsPacket{
+					Speed: &h.speedStatistics,
+					Life:  &h.lifeStatistics,
+				},
+			},
+		}
+	})
 	e := &EatableSystem{}
 	m.World.AddSystem(&CollisionSystem{})
 	m.World.AddSystem(h)
 	m.World.AddSystem(e)
-	m.World.AddSystem(&NetworkSystem{})
+	m.World.AddSystem(&NetworkSystem{lastUpdateTime: utils.GetProtoTime()})
 
 	m.Watch.Add(h)
 	m.Watch.Add(e)
@@ -76,7 +89,7 @@ func (m *Manager) Run() {
 		Blue:  1,
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 20; i++ {
 		id := ecs.NewBasic()
 		herb := AnyObject{BasicEntity: &id}
 		herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
@@ -111,7 +124,7 @@ func (m *Manager) Run() {
 	}
 
 	for i := 0; i < 5; i++ {
-		m.AddHerbivorous(utils.RandomPositionInsideCircle(50))
+		m.AddHerbivorous(utils.RandomPositionInsideCircle(50), -1)
 	}
 	// Add our entity to the appropriate systems
 	for _, system := range m.World.Systems() {
@@ -128,7 +141,7 @@ func (m *Manager) Run() {
 	lastUpdateTime := utils.GetProtoTime()
 	for {
 		dt := float64(utils.GetProtoTime()-lastUpdateTime) / math.Pow(10, 9)
-		if dt > 0.02 { // 50fps
+		if dt > 0.0001 { // 50fps
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
 			m.World.Update(dt * utils.Config.TimeScale)
 			lastUpdateTime = utils.GetProtoTime()
@@ -166,7 +179,7 @@ func (m *Manager) SyncNewClient(tkn string) {
 	}
 }
 
-func (m *Manager) AddHerbivorous(position *erutan.NetVector3) {
+func (m *Manager) AddHerbivorous(position *erutan.NetVector3, speed float64) {
 	id := ecs.NewBasic()
 	herbivorous := Herbivorous{BasicEntity: &id}
 	herbivorous.Component_HealthComponent = &erutan.Component_HealthComponent{Life: 40}
@@ -184,8 +197,12 @@ func (m *Manager) AddHerbivorous(position *erutan.NetVector3) {
 	herbivorous.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
 		BehaviourType: erutan.Component_BehaviourTypeComponent_ANIMAL,
 	}
+	// Default param
+	if speed == -1 {
+		speed = 10 + rand.Float64()*10
+	}
 	herbivorous.Component_SpeedComponent = &erutan.Component_SpeedComponent{
-		MoveSpeed: 10 + rand.Float64()*10,
+		MoveSpeed: speed,
 	}
 	// Add our herbivorous to the appropriate systems
 	for _, system := range m.World.Systems() {

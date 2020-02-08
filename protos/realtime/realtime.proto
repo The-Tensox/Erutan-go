@@ -37,6 +37,12 @@ message NetQuaternion {
     double w = 4;
 }
 
+message Statistics {
+    double average = 1;
+    double minimum = 2;
+    double maximum = 3;
+}
+
 // Data-oriented design like
 message Component {
     oneof type {
@@ -93,8 +99,9 @@ message Packet {
         // Animals & Environment
         UpdateAnimalPacket update_animal = 7;
 
-        // Server general parameters
+        // Server general
         UpdateParametersPacket update_parameters = 8;
+        StatisticsPacket statistics = 9;
     }
 
     message CreateEntityPacket {
@@ -133,5 +140,10 @@ message Packet {
                 double time_scale = 1;
             }
         }
+    }
+
+    message StatisticsPacket {
+        Statistics speed = 1;
+        Statistics life = 2;
     }
 }
