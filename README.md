@@ -27,3 +27,10 @@ cp server1.crt ~/Documents/unity/Erutan/Assets/StreamingAssets
 go build -o ./bin/erutan && bin/erutan -d -h "0.0.0.0:50051"
 go ruin main.go -d
 ```
+
+
+# Tests
+
+```bash
+go test ~/go/src/github.com/user/erutan/utils/ -v
+```

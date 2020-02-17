@@ -115,11 +115,6 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	defer s.closeStream(tkn)
 
 	// Send world state (only) to the client that connected
-	/*
-		for _, packet := range game.ManagerInstance.WorldState() {
-			srv.Send(packet)
-		}
-	*/
 	game.ManagerInstance.SyncNewClient(tkn)
 	for {
 		select {

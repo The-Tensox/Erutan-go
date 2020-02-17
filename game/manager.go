@@ -4,9 +4,7 @@ import (
 	"math"
 	"math/rand"
 	"sync"
-	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	ecs "github.com/user/erutan/ecs"
 	erutan "github.com/user/erutan/protos/realtime"
 	utils "github.com/user/erutan/utils"
@@ -56,17 +54,7 @@ func (m *Manager) Run() {
 	go m.Listen()
 
 	h := &HerbivorousSystem{}
-	go utils.DoEvery(1*time.Second, func(time.Time) {
-		m.Broadcast <- erutan.Packet{
-			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-			Type: &erutan.Packet_Statistics{
-				Statistics: &erutan.Packet_StatisticsPacket{
-					Speed: &h.speedStatistics,
-					Life:  &h.lifeStatistics,
-				},
-			},
-		}
-	})
+
 	e := &EatableSystem{}
 	m.World.AddSystem(&CollisionSystem{})
 	m.World.AddSystem(h)
@@ -81,7 +69,7 @@ func (m *Manager) Run() {
 	ground.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: &erutan.NetVector3{X: 0, Y: 0, Z: 0},
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
-		Scale:    &erutan.NetVector3{X: 100, Y: 1, Z: 100},
+		Scale:    &erutan.NetVector3{X: utils.Config.GroundSize, Y: 1, Z: utils.Config.GroundSize},
 	}
 	ground.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   0,
@@ -93,7 +81,7 @@ func (m *Manager) Run() {
 		id := ecs.NewBasic()
 		herb := AnyObject{BasicEntity: &id}
 		herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
-			Position: utils.RandomPositionInsideCircle(50),
+			Position: utils.RandomPositionInsideCircle(utils.Config.GroundSize / 2),
 			Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 			Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
 		}
@@ -124,7 +112,7 @@ func (m *Manager) Run() {
 	}
 
 	for i := 0; i < 5; i++ {
-		m.AddHerbivorous(utils.RandomPositionInsideCircle(50), -1)
+		m.AddHerbivorous(utils.RandomPositionInsideCircle(utils.Config.GroundSize/2), &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
 	}
 	// Add our entity to the appropriate systems
 	for _, system := range m.World.Systems() {
@@ -179,14 +167,14 @@ func (m *Manager) SyncNewClient(tkn string) {
 	}
 }
 
-func (m *Manager) AddHerbivorous(position *erutan.NetVector3, speed float64) {
+func (m *Manager) AddHerbivorous(position *erutan.NetVector3, scale *erutan.NetVector3, speed float64) {
 	id := ecs.NewBasic()
 	herbivorous := Herbivorous{BasicEntity: &id}
 	herbivorous.Component_HealthComponent = &erutan.Component_HealthComponent{Life: 40}
 	herbivorous.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
-		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
+		Scale:    scale,
 	}
 	herbivorous.Target = nil // target
 	herbivorous.Component_RenderComponent = &erutan.Component_RenderComponent{
@@ -220,6 +208,7 @@ func (m *Manager) AddHerbivorous(position *erutan.NetVector3, speed float64) {
 				&erutan.Component{Type: &erutan.Component_Space{Space: herbivorous.Component_SpaceComponent}},
 				&erutan.Component{Type: &erutan.Component_Render{Render: herbivorous.Component_RenderComponent}},
 				&erutan.Component{Type: &erutan.Component_Health{Health: herbivorous.Component_HealthComponent}},
+				&erutan.Component{Type: &erutan.Component_Speed{Speed: herbivorous.Component_SpeedComponent}},
 			})
 		case *RenderSystem:
 			sys.Add(herbivorous.BasicEntity, herbivorous.Component_RenderComponent)

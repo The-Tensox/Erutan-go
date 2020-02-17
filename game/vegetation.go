@@ -55,13 +55,13 @@ func (e *EatableSystem) NotifyCallback(event utils.Event) {
 		if u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			u.b.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(50)
+			u.b.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(utils.Config.GroundSize / 2)
 		}
 
 		if u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			u.a.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(50)
+			u.a.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(utils.Config.GroundSize / 2)
 		}
 
 	}

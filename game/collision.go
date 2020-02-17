@@ -45,8 +45,8 @@ func (c *CollisionSystem) Update(dt float64) {
 	// O(n²)
 	for i := 0; i < len(c.entities); i++ {
 		for j := i + 1; j < len(c.entities); j++ {
-			// Naïve collision distance < 1
-			if utils.Distance(*c.entities[i].Position, *c.entities[j].Position) < 1 {
+			// Overlap cube only collider atm
+			if Overlap(c.entities[i].Component_SpaceComponent, c.entities[j].Component_SpaceComponent) { //utils.Distance(*c.entities[i].Position, *c.entities[j].Position) < 1 {
 				// Collide
 				//utils.DebugLogf("a: %v, b: %v", c.entities[i].ID(), c.entities[j].ID())
 				ManagerInstance.Watch.Notify(utils.Event{Value: EntitiesCollided{a: c.entities[i], b: c.entities[j], dt: dt}})
@@ -59,4 +59,31 @@ type EntitiesCollided struct {
 	a  collisionEntity
 	b  collisionEntity
 	dt float64
+}
+
+type AABB struct {
+	minX float64
+	maxX float64
+	minY float64
+	maxY float64
+	minZ float64
+	maxZ float64
+}
+
+func GetAABB(sc *erutan.Component_SpaceComponent) AABB {
+	return AABB{minX: sc.Position.X - sc.Scale.X/2,
+		maxX: sc.Position.X + sc.Scale.X/2,
+		minY: sc.Position.Y - sc.Scale.Y/2,
+		maxY: sc.Position.Y + sc.Scale.Y/2,
+		minZ: sc.Position.Z - sc.Scale.Z/2,
+		maxZ: sc.Position.Z + sc.Scale.Z/2,
+	}
+}
+
+func Overlap(scA *erutan.Component_SpaceComponent, scB *erutan.Component_SpaceComponent) bool {
+	a := GetAABB(scA)
+	b := GetAABB(scB)
+	return (a.minX <= b.maxX && a.maxX >= b.minX) &&
+		(a.minY <= b.maxY && a.maxY >= b.minY) &&
+		(a.minZ <= b.maxZ && a.maxZ >= b.minZ)
 }

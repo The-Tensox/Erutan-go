@@ -73,8 +73,12 @@ func RandomString() string {
 	return fmt.Sprintf("%x", str)
 }
 
+func RandFloats(min, max float64) float64 {
+	return min + rand.Float64()*(max-min)
+}
+
 func RandomPositionInsideCircle(radius float64) *erutan.NetVector3 {
-	return &erutan.NetVector3{X: rand.Float64() * radius, Y: 1, Z: rand.Float64() * radius}
+	return &erutan.NetVector3{X: RandFloats(-radius, radius), Y: 1, Z: RandFloats(-radius, radius)}
 }
 
 func GetProtoTime() float64 {

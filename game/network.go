@@ -51,7 +51,7 @@ func (n *NetworkSystem) Remove(basic ecs.BasicEntity) {
 }
 
 func (n *NetworkSystem) Update(dt float64) {
-	if float64(utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.02 {
+	if (utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.0002*float64(len(n.entities)) {
 		for _, entity := range n.entities {
 			// Broadcast on network the update
 			ManagerInstance.Broadcast <- erutan.Packet{
