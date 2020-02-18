@@ -1,8 +1,6 @@
 package game
 
 import (
-	"math/rand"
-
 	"github.com/golang/protobuf/ptypes"
 	erutan "github.com/user/erutan/protos/realtime"
 	"github.com/user/erutan/utils"
@@ -73,9 +71,9 @@ func (h *HerbivorousSystem) Update(dt float64) {
 	for indexEntity, entity := range h.entities {
 		volume := entity.Component_SpaceComponent.Scale.X * entity.Component_SpaceComponent.Scale.Y * entity.Component_SpaceComponent.Scale.Z
 
-		// Every animal lose life proportional to deltatime and its volume
-		// So bigger animals need more food
-		if AddLife(entity.Component_HealthComponent, -3*dt*volume) {
+		// Every animal lose life proportional to deltatime, volume and speed
+		// So bigger and faster animals need more food
+		if AddLife(entity.Component_HealthComponent, -3*dt*volume*(entity.MoveSpeed/100)) {
 			ManagerInstance.Broadcast <- erutan.Packet{
 				Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 				Type: &erutan.Packet_DestroyEntity{
@@ -178,13 +176,25 @@ func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
 				}
 				AddLife(a.Component_HealthComponent, -50)
 				AddLife(b.Component_HealthComponent, -50)
-				speed := ((a.MoveSpeed + b.MoveSpeed) / 2) * (1 + (-0.5 + rand.Float64()*1))
-				min := 0.5
-				max := 1.5
-				scale := utils.Mul(utils.Div(utils.Add(*a.Scale, *b.Scale), 2), min+rand.Float64()*(max-min))
+				speed := ((a.MoveSpeed + b.MoveSpeed) / 2) * utils.RandFloats(0.5, 1.5)
+				scale := utils.Mul(utils.Div(utils.Add(*a.Scale, *b.Scale), 2), utils.RandFloats(0.5, 1.5))
+
+				// Clipping scale ... TODO: add min & max scale somewhere
+				clip := func(val float64) float64 {
+					if val < 0.1 {
+						return 0.1
+					} else if val > 5 {
+						return 5
+					} else {
+						return val
+					}
+				}
+				scale.X = clip(scale.X)
+				scale.Y = clip(scale.Y)
+				scale.Z = clip(scale.Z)
 				position := a.Position
 				position.Y = scale.Y // To stay above ground
-				utils.DebugLogf("Scale: %v", scale)
+				//utils.DebugLogf("Scale: %v", scale)
 				ManagerInstance.AddHerbivorous(position, &scale, speed)
 			}
 		}

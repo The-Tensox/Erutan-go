@@ -69,17 +69,18 @@ func (n *NetworkSystem) Update(dt float64) {
 }
 
 func (n *NetworkSystem) SyncNewClient(tkn string) {
-	ManagerInstance.StreamsMtx.Lock()
 	for _, entity := range n.entities {
-		ManagerInstance.ClientStreams[tkn] <- erutan.Packet{
-			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-			Type: &erutan.Packet_CreateEntity{
-				CreateEntity: &erutan.Packet_CreateEntityPacket{
-					EntityId:   entity.ID(),
-					Components: entity.components,
+		c, _ := ManagerInstance.ClientStreams.Load(tkn)
+		if res, ok := c.(chan erutan.Packet); ok {
+			res <- erutan.Packet{
+				Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+				Type: &erutan.Packet_CreateEntity{
+					CreateEntity: &erutan.Packet_CreateEntityPacket{
+						EntityId:   entity.ID(),
+						Components: entity.components,
+					},
 				},
-			},
+			}
 		}
 	}
-	ManagerInstance.StreamsMtx.Unlock()
 }

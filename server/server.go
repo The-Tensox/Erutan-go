@@ -140,67 +140,41 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 
 func (s *Server) broadcast(ctx context.Context) {
 	for res := range game.ManagerInstance.Broadcast {
-		game.ManagerInstance.StreamsMtx.RLock()
-		for _, stream := range game.ManagerInstance.ClientStreams {
-			select {
-			case stream <- res:
-				// noop
-			default:
-				utils.ServerLogf(time.Now(), "client stream full, dropping message")
+		game.ManagerInstance.ClientStreams.Range(func(key interface{}, stream interface{}) bool {
+			if stream, ok := stream.(chan erutan.Packet); ok {
+				select {
+				case stream <- res:
+					// noop
+				default:
+					utils.ServerLogf(time.Now(), "client stream full, dropping message")
+				}
+				return true
 			}
-		}
-		game.ManagerInstance.StreamsMtx.RUnlock()
+			return false
+		})
 	}
 }
 
 func (s *Server) openStream(tkn string) (stream chan erutan.Packet) {
-	stream = make(chan erutan.Packet, 1000)
+	stream = make(chan erutan.Packet, 10000000) // RIP COMPUTER
 
-	game.ManagerInstance.StreamsMtx.Lock()
-	game.ManagerInstance.ClientStreams[tkn] = stream
-	game.ManagerInstance.StreamsMtx.Unlock()
+	game.ManagerInstance.ClientStreams.Store(tkn, stream)
 
 	utils.DebugLogf("opened stream for client %s", tkn)
 
+	// Return the channel
 	return
 }
 
 func (s *Server) closeStream(tkn string) {
-	game.ManagerInstance.StreamsMtx.Lock()
-
-	if stream, ok := game.ManagerInstance.ClientStreams[tkn]; ok {
-		delete(game.ManagerInstance.ClientStreams, tkn)
-		close(stream)
+	if stream, ok := game.ManagerInstance.ClientStreams.Load(tkn); ok {
+		game.ManagerInstance.ClientStreams.Delete(tkn)
+		if res, ok := stream.(chan erutan.Packet); ok {
+			close(res)
+		}
 	}
 
 	utils.DebugLogf("closed stream for client %s", tkn)
-
-	game.ManagerInstance.StreamsMtx.Unlock()
-}
-
-func (s *Server) getName(tkn string) (name string, ok bool) {
-	game.ManagerInstance.NamesMtx.RLock()
-	name, ok = game.ManagerInstance.ClientNames[tkn]
-	game.ManagerInstance.NamesMtx.RUnlock()
-	return
-}
-
-func (s *Server) setName(tkn string, name string) {
-	game.ManagerInstance.NamesMtx.Lock()
-	game.ManagerInstance.ClientNames[tkn] = name
-	game.ManagerInstance.NamesMtx.Unlock()
-}
-
-func (s *Server) delName(tkn string) (name string, ok bool) {
-	name, ok = s.getName(tkn)
-
-	if ok {
-		game.ManagerInstance.NamesMtx.Lock()
-		delete(game.ManagerInstance.ClientNames, tkn)
-		game.ManagerInstance.NamesMtx.Unlock()
-	}
-
-	return
 }
 
 // valid validates the authorization.
@@ -234,13 +208,5 @@ func ensureValidToken(ctx context.Context, req interface{}, info *grpc.UnaryServ
 }
 
 func streamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-
-	/*s, _ := srv.(*Server)
-
-	s.streamsMtx.Lock()
-
-	DebugLogf("streamInterceptor ", s.ClientStreams, ss, info, handler)
-	s.streamsMtx.Unlock()
-	*/
 	return nil
 }

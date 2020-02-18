@@ -20,5 +20,5 @@ var (
 // InitializeConfig initialize Config
 func InitializeConfig(timeScale float64) {
 	Config.TimeScale = timeScale
-	Config.GroundSize = 200.0
+	Config.GroundSize = 100.0
 }

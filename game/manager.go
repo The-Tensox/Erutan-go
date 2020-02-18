@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/aquilax/go-perlin"
 	ecs "github.com/user/erutan/ecs"
 	erutan "github.com/user/erutan/protos/realtime"
 	utils "github.com/user/erutan/utils"
@@ -21,9 +22,8 @@ var (
 type Manager struct {
 	World ecs.World
 
-	ClientNames          map[string]string
-	ClientStreams        map[string]chan erutan.Packet
-	NamesMtx, StreamsMtx sync.RWMutex
+	ClientNames   map[string]string
+	ClientStreams sync.Map
 
 	// Broadcast is a global channel to send packets to clients
 	Broadcast chan erutan.Packet
@@ -39,12 +39,10 @@ func Initialize() {
 	once.Do(func() {
 		ManagerInstance =
 			&Manager{
-				World:         ecs.World{},
-				ClientNames:   make(map[string]string),
-				ClientStreams: make(map[string]chan erutan.Packet),
-				Broadcast:     make(chan erutan.Packet, 1000),
-				Receive:       make(chan *erutan.Packet, 1000),
-				Watch:         utils.Watch{},
+				World:     ecs.World{},
+				Broadcast: make(chan erutan.Packet, 1000),
+				Receive:   make(chan *erutan.Packet, 1000),
+				Watch:     utils.Watch{},
 			}
 	})
 }
@@ -54,7 +52,6 @@ func (m *Manager) Run() {
 	go m.Listen()
 
 	h := &HerbivorousSystem{}
-
 	e := &EatableSystem{}
 	m.World.AddSystem(&CollisionSystem{})
 	m.World.AddSystem(h)
@@ -64,68 +61,33 @@ func (m *Manager) Run() {
 	m.Watch.Add(h)
 	m.Watch.Add(e)
 
-	id := ecs.NewBasic()
-	ground := AnyObject{BasicEntity: &id}
-	ground.Component_SpaceComponent = &erutan.Component_SpaceComponent{
-		Position: &erutan.NetVector3{X: 0, Y: 0, Z: 0},
-		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
-		Scale:    &erutan.NetVector3{X: utils.Config.GroundSize, Y: 1, Z: utils.Config.GroundSize},
-	}
-	ground.Component_RenderComponent = &erutan.Component_RenderComponent{
-		Red:   0,
-		Green: 0,
-		Blue:  1,
-	}
-
-	for i := 0; i < 20; i++ {
-		id := ecs.NewBasic()
-		herb := AnyObject{BasicEntity: &id}
-		herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
-			Position: utils.RandomPositionInsideCircle(utils.Config.GroundSize / 2),
-			Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
-			Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
-		}
-		herb.Component_RenderComponent = &erutan.Component_RenderComponent{
-			Red:   0,
-			Green: 1,
-			Blue:  0,
-		}
-		herb.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
-			BehaviourType: erutan.Component_BehaviourTypeComponent_VEGETATION,
-		}
-		// Add our entity to the appropriate systems
-		for _, system := range m.World.Systems() {
-			switch sys := system.(type) {
-			case *CollisionSystem:
-				sys.Add(herb.BasicEntity, herb.Component_SpaceComponent, herb.Component_BehaviourTypeComponent)
-			case *EatableSystem:
-				sys.Add(herb.BasicEntity, herb.Component_SpaceComponent)
-			case *NetworkSystem:
-				sys.Add(herb.BasicEntity, []*erutan.Component{
-					&erutan.Component{Type: &erutan.Component_Space{Space: herb.Component_SpaceComponent}},
-					&erutan.Component{Type: &erutan.Component_Render{Render: herb.Component_RenderComponent}},
-				})
-			case *RenderSystem:
-				sys.Add(herb.BasicEntity, herb.Component_RenderComponent)
-			}
+	p := perlin.NewPerlin(1.5, 2, 3, 100)
+	for x := 0.; x < utils.Config.GroundSize; x++ {
+		for y := 0.; y < utils.Config.GroundSize; y++ {
+			noise := p.Noise2D(x/10, y/10)
+			//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
+			m.AddGround(&erutan.NetVector3{X: x, Y: noise, Z: y})
 		}
 	}
 
-	for i := 0; i < 5; i++ {
-		m.AddHerbivorous(utils.RandomPositionInsideCircle(utils.Config.GroundSize/2), &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
-	}
-	// Add our entity to the appropriate systems
-	for _, system := range m.World.Systems() {
-		switch sys := system.(type) {
-		case *NetworkSystem:
-			sys.Add(ground.BasicEntity, []*erutan.Component{
-				&erutan.Component{Type: &erutan.Component_Space{Space: ground.Component_SpaceComponent}},
-				&erutan.Component{Type: &erutan.Component_Render{Render: ground.Component_RenderComponent}},
-			})
-		case *RenderSystem:
-			sys.Add(ground.BasicEntity, ground.Component_RenderComponent)
+	/*
+		for i := 0; i < 200; i++ {
+			m.AddGround(utils.RandomPositionInsideSphere(&erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize))
 		}
-	}
+	*/
+
+	/*
+		for i := 0; i < 20; i++ {
+			m.AddHerb()
+		}
+
+		for i := 0; i < 5; i++ {
+			m.AddHerbivorous(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: 0, Y: 0},
+				utils.Config.GroundSize/2), &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
+		}
+	*/
+
+	// Main loop
 	lastUpdateTime := utils.GetProtoTime()
 	for {
 		dt := float64(utils.GetProtoTime()-lastUpdateTime) / math.Pow(10, 9)
@@ -151,6 +113,14 @@ func (m *Manager) Listen() {
 					}
 				}
 			case *erutan.Packet_CreateEntity:
+				// Only handle herbivorous and client only has access to position
+				var sc erutan.Component_SpaceComponent
+				for _, c := range p.GetCreateEntity().Components {
+					if tmp := c.GetSpace(); tmp != nil {
+						sc = *tmp
+					}
+				}
+				m.AddHerbivorous(sc.Position, &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
 			default:
 				utils.DebugLogf("Client sent unimplemented packet: %v", t)
 			}
@@ -163,6 +133,67 @@ func (m *Manager) SyncNewClient(tkn string) {
 		switch sys := system.(type) {
 		case *NetworkSystem:
 			sys.SyncNewClient(tkn)
+		}
+	}
+}
+
+func (m *Manager) AddGround(position *erutan.NetVector3) {
+	id := ecs.NewBasic()
+	ground := AnyObject{BasicEntity: &id}
+	ground.Component_SpaceComponent = &erutan.Component_SpaceComponent{
+		Position: position,
+		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
+		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
+	}
+	ground.Component_RenderComponent = &erutan.Component_RenderComponent{
+		Red:   0,
+		Green: 0,
+		Blue:  1,
+	}
+	// Add our entity to the appropriate systems
+	for _, system := range m.World.Systems() {
+		switch sys := system.(type) {
+		case *NetworkSystem:
+			sys.Add(ground.BasicEntity, []*erutan.Component{
+				&erutan.Component{Type: &erutan.Component_Space{Space: ground.Component_SpaceComponent}},
+				&erutan.Component{Type: &erutan.Component_Render{Render: ground.Component_RenderComponent}},
+			})
+		case *RenderSystem:
+			sys.Add(ground.BasicEntity, ground.Component_RenderComponent)
+		}
+	}
+}
+
+func (m *Manager) AddHerb() {
+	id := ecs.NewBasic()
+	herb := AnyObject{BasicEntity: &id}
+	herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
+		Position: utils.RandomPositionInsideCircle(&erutan.NetVector2{X: 0, Y: 0}, utils.Config.GroundSize/2),
+		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
+		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
+	}
+	herb.Component_RenderComponent = &erutan.Component_RenderComponent{
+		Red:   0,
+		Green: 1,
+		Blue:  0,
+	}
+	herb.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
+		BehaviourType: erutan.Component_BehaviourTypeComponent_VEGETATION,
+	}
+	// Add our entity to the appropriate systems
+	for _, system := range m.World.Systems() {
+		switch sys := system.(type) {
+		case *CollisionSystem:
+			sys.Add(herb.BasicEntity, herb.Component_SpaceComponent, herb.Component_BehaviourTypeComponent)
+		case *EatableSystem:
+			sys.Add(herb.BasicEntity, herb.Component_SpaceComponent)
+		case *NetworkSystem:
+			sys.Add(herb.BasicEntity, []*erutan.Component{
+				&erutan.Component{Type: &erutan.Component_Space{Space: herb.Component_SpaceComponent}},
+				&erutan.Component{Type: &erutan.Component_Render{Render: herb.Component_RenderComponent}},
+			})
+		case *RenderSystem:
+			sys.Add(herb.BasicEntity, herb.Component_RenderComponent)
 		}
 	}
 }

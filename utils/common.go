@@ -77,8 +77,14 @@ func RandFloats(min, max float64) float64 {
 	return min + rand.Float64()*(max-min)
 }
 
-func RandomPositionInsideCircle(radius float64) *erutan.NetVector3 {
-	return &erutan.NetVector3{X: RandFloats(-radius, radius), Y: 1, Z: RandFloats(-radius, radius)}
+func RandomPositionInsideCircle(center *erutan.NetVector2, radius float64) *erutan.NetVector3 {
+	return &erutan.NetVector3{X: RandFloats(-radius+center.X, radius+center.X), Y: 1, Z: RandFloats(-radius+center.Y, radius+center.Y)}
+}
+
+func RandomPositionInsideSphere(center *erutan.NetVector3, radius float64) *erutan.NetVector3 {
+	return &erutan.NetVector3{X: RandFloats(-radius+center.X, radius+center.X),
+		Y: RandFloats(-radius+center.Y, radius+center.Y),
+		Z: RandFloats(-radius+center.Y, radius+center.Y)}
 }
 
 func GetProtoTime() float64 {
