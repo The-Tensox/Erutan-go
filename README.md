@@ -8,7 +8,7 @@ To be used with [the Unity client](https://github.com/The-Tensox/Erutan-unity)
 # Installation
 
 ```bash
-export UNITY_PROJECT_PATH=""
+export UNITY_PROJECT_PATH="/home/louis/Documents/unity/Erutan"
 go get github.com/The-Tensox/Erutan-go
 protoc -I protos/realtime --go_out=plugins=grpc:protos/realtime protos/realtime/realtime.proto
 cp protos/realtime/realtime.proto $UNITY_PROJECT_PATH/Assets/Protos/Realtime
@@ -31,10 +31,10 @@ cp server1.crt $UNITY_PROJECT_PATH/Assets/StreamingAssets
 # Run
 
 ```bash
-go build -o ./bin/erutan && bin/erutan -d
+go build -o ./bin/erutan && bin/erutan
 
 # Or
-go ruin main.go -d
+go ruin main.go
 ```
 
 # Tests

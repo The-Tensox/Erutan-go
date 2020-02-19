@@ -47,12 +47,16 @@ message Line {
     NetVector2 p2 = 2;
 }
 
-// Shape is a shape used for a SpaceComponent's collider. It is composed of
-// Lines that make up the polygon's shape or an ellipse which makes up an elliptical
-// shape.
+// Shape is a ...
 message Shape {
-	Ellipse ellipse = 1;
-	repeated Line lines = 2;
+	repeated NetVector3 vertices = 2;
+	repeated int32 tris = 3;
+	repeated NetVector3 normals = 4;
+	repeated NetVector2 uvs = 5;
+}
+
+message Collider {
+    // TODO: Box, Sphere, Capsule ..., atm all are Box collider
 }
 
 // Ellipse represnets an ellpitical shape.
@@ -74,12 +78,13 @@ message Component {
         SpeedComponent speed = 4;
         RenderComponent render = 5;
         BehaviourTypeComponent behaviour_type = 6;
+        PhysicsComponent physics = 7;
     }
     message SpaceComponent {
         NetVector3 position = 1;
         NetQuaternion rotation = 2;
         NetVector3 scale = 3;
-        //repeated Shape collider = 4;
+        Shape shape = 4;
     }
     message SpaceTimeComponent {
         google.protobuf.Timestamp timestamp = 1;
@@ -99,12 +104,17 @@ message Component {
         float green = 2;
         float blue = 3;
     }
+    // Acts as a sort of tag, see if we could do something cleaner
     message BehaviourTypeComponent {
         enum BehaviourType {
-            ANIMAL = 0;
-            VEGETATION = 1;
+            ANY = 0;
+            ANIMAL = 1;
+            VEGETATION = 2;
         }
         BehaviourType behaviour_type = 1;
+    }
+    message PhysicsComponent {
+        bool use_gravity = 1;
     }
 }
 

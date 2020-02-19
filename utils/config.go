@@ -16,9 +16,3 @@ var (
 		GroundSize float64
 	}
 )
-
-// InitializeConfig initialize Config
-func InitializeConfig(timeScale float64) {
-	Config.TimeScale = timeScale
-	Config.GroundSize = 100.0
-}

@@ -19,6 +19,8 @@ func init() {
 func flags() {
 	flag.BoolVar(&utils.Config.DebugMode, "d", false, "enable debug logging")
 	flag.StringVar(&utils.Config.Host, "h", "0.0.0.0:50051", "the server's host")
+	flag.Float64Var(&utils.Config.GroundSize, "g", 20, "ground size")
+	flag.Float64Var(&utils.Config.TimeScale, "t", 1, "the server's time scale")
 	flag.Parse()
 	rand.Seed(time.Now().UnixNano())
 	log.SetFlags(0)
@@ -39,6 +41,5 @@ func RunMain() {
 
 func main() {
 	flags()
-	utils.InitializeConfig(1)
 	RunMain()
 }

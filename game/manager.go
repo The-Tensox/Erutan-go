@@ -2,10 +2,8 @@ package game
 
 import (
 	"math"
-	"math/rand"
 	"sync"
 
-	"github.com/aquilax/go-perlin"
 	ecs "github.com/user/erutan/ecs"
 	erutan "github.com/user/erutan/protos/realtime"
 	utils "github.com/user/erutan/utils"
@@ -22,7 +20,6 @@ var (
 type Manager struct {
 	World ecs.World
 
-	ClientNames   map[string]string
 	ClientStreams sync.Map
 
 	// Broadcast is a global channel to send packets to clients
@@ -61,31 +58,39 @@ func (m *Manager) Run() {
 	m.Watch.Add(h)
 	m.Watch.Add(e)
 
-	p := perlin.NewPerlin(1.5, 2, 3, 100)
-	for x := 0.; x < utils.Config.GroundSize; x++ {
-		for y := 0.; y < utils.Config.GroundSize; y++ {
-			noise := p.Noise2D(x/10, y/10)
-			//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
-			m.AddGround(&erutan.NetVector3{X: x, Y: noise, Z: y})
+	/*
+		p := perlin.NewPerlin(1, 1, 5, 100)
+		for x := 0.; x < utils.Config.GroundSize; x++ {
+			for y := 0.; y < utils.Config.GroundSize; y++ {
+				noise := p.Noise2D(x/10, y/10)
+				//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
+				m.AddGround(&erutan.NetVector3{X: x, Y: noise, Z: y}, 1)
+			}
 		}
+	*/
+
+	m.AddGround(&erutan.NetVector3{X: 0, Y: -utils.Config.GroundSize, Z: 0}, utils.Config.GroundSize)
+	/*
+		for i := 0; i < 10; i++ {
+			m.AddGround(utils.RandomPositionInsideSphere(&erutan.NetVector3{X: 0, Y: 0, Z: 0}, 10))
+		}
+	*/
+	// Debug thing, wait client
+	nbClients := 0
+	for nbClients == 0 {
+		m.ClientStreams.Range(func(key interface{}, value interface{}) bool {
+			nbClients++
+			return true
+		})
+	}
+	for i := 0; i < 20; i++ {
+		m.AddHerb()
 	}
 
-	/*
-		for i := 0; i < 200; i++ {
-			m.AddGround(utils.RandomPositionInsideSphere(&erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize))
-		}
-	*/
-
-	/*
-		for i := 0; i < 20; i++ {
-			m.AddHerb()
-		}
-
-		for i := 0; i < 5; i++ {
-			m.AddHerbivorous(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: 0, Y: 0},
-				utils.Config.GroundSize/2), &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
-		}
-	*/
+	for i := 0; i < 5; i++ {
+		m.AddHerbivorous(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
+			utils.Config.GroundSize/2), &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
+	}
 
 	// Main loop
 	lastUpdateTime := utils.GetProtoTime()
@@ -137,22 +142,34 @@ func (m *Manager) SyncNewClient(tkn string) {
 	}
 }
 
-func (m *Manager) AddGround(position *erutan.NetVector3) {
+func (m *Manager) AddGround(position *erutan.NetVector3, sideLenght float64) {
 	id := ecs.NewBasic()
 	ground := AnyObject{BasicEntity: &id}
 	ground.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
+		Shape:    utils.CreateCube(sideLenght),
 	}
 	ground.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   0,
-		Green: 0,
-		Blue:  1,
+		Green: -float32(position.Y),
+		Blue:  0,
+	}
+	ground.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
+		BehaviourType: erutan.Component_BehaviourTypeComponent_ANY,
+	}
+	ground.Component_PhysicsComponent = &erutan.Component_PhysicsComponent{
+		UseGravity: false,
 	}
 	// Add our entity to the appropriate systems
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
+		case *CollisionSystem:
+			sys.Add(ground.BasicEntity,
+				ground.Component_SpaceComponent,
+				ground.Component_BehaviourTypeComponent,
+				ground.Component_PhysicsComponent)
 		case *NetworkSystem:
 			sys.Add(ground.BasicEntity, []*erutan.Component{
 				&erutan.Component{Type: &erutan.Component_Space{Space: ground.Component_SpaceComponent}},
@@ -168,23 +185,31 @@ func (m *Manager) AddHerb() {
 	id := ecs.NewBasic()
 	herb := AnyObject{BasicEntity: &id}
 	herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
-		Position: utils.RandomPositionInsideCircle(&erutan.NetVector2{X: 0, Y: 0}, utils.Config.GroundSize/2),
+		Position: utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
+			utils.Config.GroundSize/2),
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
+		Shape:    utils.CreateCube(1),
 	}
 	herb.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   0,
-		Green: 1,
-		Blue:  0,
+		Green: 0,
+		Blue:  1,
 	}
 	herb.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
 		BehaviourType: erutan.Component_BehaviourTypeComponent_VEGETATION,
+	}
+	herb.Component_PhysicsComponent = &erutan.Component_PhysicsComponent{
+		UseGravity: true,
 	}
 	// Add our entity to the appropriate systems
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *CollisionSystem:
-			sys.Add(herb.BasicEntity, herb.Component_SpaceComponent, herb.Component_BehaviourTypeComponent)
+			sys.Add(herb.BasicEntity,
+				herb.Component_SpaceComponent,
+				herb.Component_BehaviourTypeComponent,
+				herb.Component_PhysicsComponent)
 		case *EatableSystem:
 			sys.Add(herb.BasicEntity, herb.Component_SpaceComponent)
 		case *NetworkSystem:
@@ -206,6 +231,7 @@ func (m *Manager) AddHerbivorous(position *erutan.NetVector3, scale *erutan.NetV
 		Position: position,
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 		Scale:    scale,
+		Shape:    utils.CreateCube(1),
 	}
 	herbivorous.Target = nil // target
 	herbivorous.Component_RenderComponent = &erutan.Component_RenderComponent{
@@ -218,16 +244,22 @@ func (m *Manager) AddHerbivorous(position *erutan.NetVector3, scale *erutan.NetV
 	}
 	// Default param
 	if speed == -1 {
-		speed = 10 + rand.Float64()*10
+		speed = utils.RandFloats(10, 20)
 	}
 	herbivorous.Component_SpeedComponent = &erutan.Component_SpeedComponent{
 		MoveSpeed: speed,
+	}
+	herbivorous.Component_PhysicsComponent = &erutan.Component_PhysicsComponent{
+		UseGravity: true,
 	}
 	// Add our herbivorous to the appropriate systems
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *CollisionSystem:
-			sys.Add(herbivorous.BasicEntity, herbivorous.Component_SpaceComponent, herbivorous.Component_BehaviourTypeComponent)
+			sys.Add(herbivorous.BasicEntity,
+				herbivorous.Component_SpaceComponent,
+				herbivorous.Component_BehaviourTypeComponent,
+				herbivorous.Component_PhysicsComponent)
 		case *HerbivorousSystem:
 			sys.Add(herbivorous.BasicEntity,
 				herbivorous.Component_SpaceComponent,

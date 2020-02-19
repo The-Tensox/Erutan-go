@@ -93,3 +93,12 @@ func (w *World) RemoveEntity(e BasicEntity) {
 		sys.Remove(e)
 	}
 }
+
+// GetSystems ... dirty or not?
+func (w *World) GetSystems(e BasicEntity) []System {
+	var s []System
+	for _, sys := range w.systems {
+		s = append(s, sys)
+	}
+	return s
+}
