@@ -208,12 +208,17 @@ func (b *Box) IsContainedIn(o *Box) bool {
 // Intersects Returns whether any portion of this box intersects with
 // the specified box.
 func (b *Box) Intersects(o *Box) bool {
-	return !(b.Max.X < o.Min.X ||
-		o.Max.X < b.Min.X ||
-		b.Max.Y < o.Min.Y ||
-		o.Max.Y < b.Min.Y ||
-		b.Max.Z < o.Min.Z ||
-		o.Max.Z < b.Min.Z)
+	return (b.Min.X <= o.Max.X && b.Max.X >= o.Min.X) &&
+		(b.Min.Y <= o.Max.Y && b.Max.Y >= o.Min.Y) &&
+		(b.Min.Z <= o.Max.Z && b.Max.Z >= o.Min.Z)
+	/*
+		return !(b.Max.X < o.Min.X ||
+			o.Max.X < b.Min.X ||
+			b.Max.Y < o.Min.Y ||
+			o.Max.Y < b.Min.Y ||
+			b.Max.Z < o.Min.Z ||
+			o.Max.Z < b.Min.Z)
+	*/
 }
 
 // MakeSubBoxes ...
@@ -239,6 +244,14 @@ func GetBox(position, scale erutan.NetVector3) Box {
 	return Box{
 		Min: erutan.NetVector3{X: position.X - scale.X/2, Y: position.Y - scale.Y/2, Z: position.Z - scale.Z/2},
 		Max: erutan.NetVector3{X: position.X + scale.X/2, Y: position.Y + scale.Y/2, Z: position.Z + scale.Z/2},
+	}
+}
+
+// GetBoxOfSize return a box based on position and size given
+func GetBoxOfSize(position erutan.NetVector3, size float64) Box {
+	return Box{
+		Min: erutan.NetVector3{X: position.X - size, Y: position.Y - size, Z: position.Z - size},
+		Max: erutan.NetVector3{X: position.X + size, Y: position.Y + size, Z: position.Z + size},
 	}
 }
 

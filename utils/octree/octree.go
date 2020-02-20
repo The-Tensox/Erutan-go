@@ -13,14 +13,11 @@ type Octree struct {
 	root *Node
 }
 
-// NewOctree Makes a new octree with the given min and max.
-func NewOctree(min, max erutan.NetVector3) *Octree {
+// NewOctree Makes a new octree with the given box.
+func NewOctree(box vector.Box) *Octree {
 	return &Octree{
 		root: &Node{
-			box: vector.Box{
-				Min: vector.Min(&min, &max),
-				Max: vector.Max(&min, &max),
-			},
+			box: box,
 		},
 	}
 }
@@ -38,6 +35,15 @@ func (o *Octree) Clear() bool {
 	}
 
 	return false
+}
+
+// Range iterates octree elements
+func (o *Octree) Range(f func(elements []interface{})) {
+	if o.root.hasChildren {
+		for _, c := range o.root.children {
+			f(o.ElementsIn(c.box))
+		}
+	}
 }
 
 // Add Inserts the element in the tree at the specified point.

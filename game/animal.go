@@ -10,7 +10,7 @@ import (
 )
 
 // AddLife set health component life, clip it and return true if entity is dead
-func AddLife(h *erutan.Component_HealthComponent, value float64) bool {
+func AddLife(e ecs.BasicEntity, h *erutan.Component_HealthComponent, value float64) bool {
 	h.Life += value
 	// Clip 0, 100
 	/*if h.Life > 100 {
@@ -19,6 +19,15 @@ func AddLife(h *erutan.Component_HealthComponent, value float64) bool {
 		h.Life = 0
 	}
 	if h.Life == 0 {
+		ManagerInstance.Broadcast <- erutan.Packet{
+			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+			Type: &erutan.Packet_DestroyEntity{
+				DestroyEntity: &erutan.Packet_DestroyEntityPacket{
+					EntityId: e.ID(),
+				},
+			},
+		}
+		ManagerInstance.World.RemoveEntity(e) // TODO: collisionsystem -> remove by position faster ?
 		return true
 	}
 	return false
@@ -75,16 +84,8 @@ func (h *HerbivorousSystem) Update(dt float64) {
 
 		// Every animal lose life proportional to deltatime, volume and speed
 		// So bigger and faster animals need more food
-		if AddLife(entity.Component_HealthComponent, -30*dt*volume*(entity.MoveSpeed/100)) {
-			ManagerInstance.Broadcast <- erutan.Packet{
-				Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-				Type: &erutan.Packet_DestroyEntity{
-					DestroyEntity: &erutan.Packet_DestroyEntityPacket{
-						EntityId: entity.ID(),
-					},
-				},
-			}
-			ManagerInstance.World.RemoveEntity(*entity.BasicEntity)
+		if AddLife(*entity.BasicEntity, entity.Component_HealthComponent, -3*dt*volume*(entity.MoveSpeed/100)) {
+			// Dead
 		}
 
 		// If I don't have a target, let's find one
@@ -148,9 +149,12 @@ func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
 	case EntitiesCollided:
 		a := h.Find(e.a.ID())
 		b := h.Find(e.b.ID())
+		// TODO: clean this ugly as hell function
+		//utils.DebugLogf("yay %v %v", a, b)
+
 		if e.a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION &&
 			e.b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL {
-			AddLife(b.Component_HealthComponent, 40)
+			AddLife(*b.BasicEntity, b.Component_HealthComponent, 40)
 
 			// Reset target for everyone that had this target
 			for _, e := range h.entities {
@@ -160,7 +164,7 @@ func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
 			}
 		} else if e.b.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION &&
 			e.a.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL {
-			AddLife(b.Component_HealthComponent, 40)
+			AddLife(*a.BasicEntity, a.Component_HealthComponent, 40)
 
 			// Reset target for everyone that had this target
 			for _, e := range h.entities {
@@ -176,17 +180,17 @@ func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
 				if b.Target != nil {
 					b.Target = nil
 				}
-				AddLife(a.Component_HealthComponent, -50)
-				AddLife(b.Component_HealthComponent, -50)
+				AddLife(*a.BasicEntity, a.Component_HealthComponent, -50)
+				AddLife(*b.BasicEntity, b.Component_HealthComponent, -50)
 				speed := ((a.MoveSpeed + b.MoveSpeed) / 2) * utils.RandFloats(0.5, 1.5)
 				scale := vector.Mul(vector.Div(vector.Add(*a.Scale, *b.Scale), 2), utils.RandFloats(0.5, 1.5))
 
 				// Clipping scale ... TODO: add min & max scale somewhere
 				clip := func(val float64, min float64, max float64) float64 {
-					if val < 0.1 {
-						return 0.1
-					} else if val > 5 {
-						return 5
+					if val < min {
+						return min
+					} else if val > max {
+						return max
 					} else {
 						return val
 					}

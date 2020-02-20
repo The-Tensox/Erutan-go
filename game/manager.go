@@ -50,7 +50,9 @@ func (m *Manager) Run() {
 
 	h := &HerbivorousSystem{}
 	e := &EatableSystem{}
-	m.World.AddSystem(&CollisionSystem{})
+	c := &CollisionSystem{}
+	c.New(&m.World)
+	m.World.AddSystem(c)
 	m.World.AddSystem(h)
 	m.World.AddSystem(e)
 	m.World.AddSystem(&NetworkSystem{lastUpdateTime: utils.GetProtoTime()})
@@ -76,13 +78,15 @@ func (m *Manager) Run() {
 		}
 	*/
 	// Debug thing, wait client
-	nbClients := 0
-	for nbClients == 0 {
-		m.ClientStreams.Range(func(key interface{}, value interface{}) bool {
-			nbClients++
-			return true
-		})
-	}
+	/*
+		nbClients := 0
+		for nbClients == 0 {
+			m.ClientStreams.Range(func(key interface{}, value interface{}) bool {
+				nbClients++
+				return true
+			})
+		}
+	*/
 	for i := 0; i < 20; i++ {
 		m.AddHerb()
 	}

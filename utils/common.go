@@ -78,7 +78,7 @@ func RandFloats(min, max float64) float64 {
 }
 
 func RandomPositionInsideCircle(center *erutan.NetVector2, radius float64) *erutan.NetVector3 {
-	return &erutan.NetVector3{X: RandFloats(-radius+center.X, radius+center.X), Y: 0, Z: RandFloats(-radius+center.Y, radius+center.Y)}
+	return &erutan.NetVector3{X: RandFloats(-radius+center.X, radius+center.X), Y: 10, Z: RandFloats(-radius+center.Y, radius+center.Y)}
 }
 
 func RandomPositionInsideSphere(center *erutan.NetVector3, radius float64) *erutan.NetVector3 {
