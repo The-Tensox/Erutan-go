@@ -142,7 +142,7 @@ func Test_BoxIntersectsBox(t *testing.T) {
 }
 
 func TestInitializesRoot(t *testing.T) {
-	o := NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 
 	//o.Add(99, erutan.NetVector3{10, 0, 0})
 
@@ -154,7 +154,7 @@ func TestInitializesRoot(t *testing.T) {
 }
 
 func TestInsertsContainedElements(t *testing.T) {
-	o := NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 
 	equals(t, true, o.Add(99, erutan.NetVector3{X: 1.00000000001, Y: 1, Z: 1}) == nil)
 	equals(t, false, o.root.hasChildren)
@@ -173,7 +173,7 @@ func TestInsertsContainedElements(t *testing.T) {
 }
 
 func TestEqualPointsSubdivide(t *testing.T) {
-	o := NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 
 	o.Add(1, erutan.NetVector3{X: 0, Y: 0, Z: 0})
 	o.Add(1, erutan.NetVector3{X: 0, Y: 0, Z: 0})
@@ -187,7 +187,7 @@ func TestEqualPointsSubdivide(t *testing.T) {
 }
 
 func TestRetrievesElementsIn(t *testing.T) {
-	o := NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 
 	o.Add(11, erutan.NetVector3{X: 0, Y: 0, Z: 0})
 	// contains point
@@ -221,7 +221,7 @@ func TestRetrievesElementsIn(t *testing.T) {
 	equals(t, 3, len(o.ElementsIn(vector.Box{erutan.NetVector3{X: -1, Y: -1, Z: -1}, erutan.NetVector3{X: 2, Y: 2, Z: 2}})))
 
 	// fresh octree
-	o = NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o = NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 	equals(t, false, o.root.hasChildren)
 
 	o.Add(11, erutan.NetVector3{X: 0.4, Y: 0.4, Z: 0.4})
@@ -245,10 +245,43 @@ func TestRetrievesElementsIn(t *testing.T) {
 	equals(t, 11, o.ElementsIn(vector.Box{erutan.NetVector3{X: 0.35, Y: 0.35, Z: 0.35}, erutan.NetVector3{X: 0.45, Y: 0.45, Z: 0.45}})[0])
 	equals(t, 12, o.ElementsIn(vector.Box{erutan.NetVector3{X: 0.65, Y: 0.65, Z: 0.65}, erutan.NetVector3{X: 0.75, Y: 0.75, Z: 0.75}})[0])
 	equals(t, 13, o.ElementsIn(vector.Box{erutan.NetVector3{X: 0.65, Y: 0.65, Z: 0.65}, erutan.NetVector3{X: 0.75, Y: 0.75, Z: 0.75}})[1])
+
+	// fresh octree
+	o = NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
+	equals(t, false, o.root.hasChildren)
+
+	a := erutan.NetVector3{X: 0.4, Y: 0.4, Z: 0.4}
+	b := a
+	b.Y += 0.4
+	o.Add(1, a)
+	o.Add(2, b)
+
+	// From a to a.Y+0.3
+	equals(t, 1, len(o.ElementsIn(vector.Box{a, erutan.NetVector3{X: 0.4, Y: 0.7, Z: 0.4}})))
+	equals(t, 2, len(o.ElementsIn(vector.Box{a, b})))
+}
+
+func TestRetrievesFirstElementIn(t *testing.T) {
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
+	b := vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}}
+	o.Add(1, erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1})
+
+	e := o.FirstElementIn(b)
+	equals(t, 1, e)
+
+	o.Add(2, erutan.NetVector3{X: 0.2, Y: 0.2, Z: 0.2})
+
+	e = o.FirstElementIn(b)
+	equals(t, 1, e)
+
+	o.Add(3, erutan.NetVector3{X: 0.01, Y: 0.01, Z: 0.01})
+
+	e = o.FirstElementIn(b)
+	equals(t, 3, e)
 }
 
 func TestRetrievesElementsAt(t *testing.T) {
-	o := NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 
 	o.Add(11, erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1})
 	// finds element at point
@@ -283,7 +316,7 @@ func TestRetrievesElementsAt(t *testing.T) {
 }
 
 func TestRemovesElements(t *testing.T) {
-	o := NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 
 	// removes element
 	o.Add(11, erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1})
@@ -333,7 +366,7 @@ func TestRemovesElements(t *testing.T) {
 }
 
 func TestRemovesElementsUsing(t *testing.T) {
-	o := NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 
 	// removes element using node ref
 	node11 := o.Add(11, erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1})
@@ -371,11 +404,60 @@ func TestRemovesElementsUsing(t *testing.T) {
 }
 
 func TestClearTree(t *testing.T) {
-	o := NewOctree(erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1})
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
 	equals(t, 0, len(o.ElementsAt(erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1})))
 	o.Add(11, erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1})
 	equals(t, 1, len(o.ElementsAt(erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1})))
 
 	o.Clear()
 	equals(t, 0, len(o.ElementsAt(erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1})))
+}
+
+func TestRaycast(t *testing.T) {
+	o := NewOctree(vector.Box{erutan.NetVector3{X: 0, Y: 0, Z: 0}, erutan.NetVector3{X: 1, Y: 1, Z: 1}})
+	a := erutan.NetVector3{X: 0.1, Y: 0.1, Z: 0.1}
+	b := a
+	b.Y += 0.4 // Just above a
+	o.Add(1, a)
+	o.Add(2, b)
+	origin := a
+	origin.Y += 0.1 // We start the raycast just from above our position, to skip ourself ...
+	hit := o.Raycast(origin, erutan.NetVector3{X: 0, Y: 1, Z: 0}, 1)
+	/*
+
+				b 0.1,0.5,0.1
+		d=0.4	^ Raycast of length 1
+				|
+				a 0.1,0.1,0.1
+
+		We're supposed to hit b
+
+	*/
+	equals(t, 2, hit)
+
+	hit = o.Raycast(origin, erutan.NetVector3{X: 0, Y: 1, Z: 0}, 0.1)
+	/*
+
+				b 0.1,0.5,0.1
+		d=0.4	^ Raycast of length 0.1
+				|
+				a 0.1,0.1,0.1
+
+		We're not supposed to hit anything  there
+
+	*/
+	equals(t, nil, hit)
+
+	hit = o.Raycast(origin, erutan.NetVector3{X: 0, Y: 1, Z: 0}, 0.4)
+	/*
+
+				b 0.1,0.5,0.1
+		d=0.4	^ Raycast of length 0.4
+				|
+				a 0.1,0.1,0.1
+
+		We're supposed to hit b (on the edge of the raycast)
+
+	*/
+	equals(t, 2, hit)
 }

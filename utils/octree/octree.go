@@ -2,8 +2,10 @@ package octree
 
 import (
 	"fmt"
+	"math"
 
 	erutan "github.com/user/erutan/protos/realtime"
+	"github.com/user/erutan/utils"
 	"github.com/user/erutan/utils/vector"
 )
 
@@ -39,10 +41,11 @@ func (o *Octree) Clear() bool {
 
 // Range iterates octree elements
 func (o *Octree) Range(f func(elements []interface{})) {
-	if o.root.hasChildren {
-		for _, c := range o.root.children {
-			f(o.ElementsIn(c.box))
-		}
+	// TODO: remove or fix
+	utils.DebugLogf("e %v", o.root.elements)
+	return
+	for _, c := range o.root.children {
+		f(o.ElementsIn(c.box))
 	}
 }
 
@@ -65,6 +68,13 @@ func (o *Octree) ElementsIn(box vector.Box) []interface{} {
 	return o.root.elementsIn(&box)
 }
 
+// FirstElementIn Retrieves an element that exist
+// within the specified box. Should be faster than ElementsIn if we just want
+// the first element
+func (o *Octree) FirstElementIn(box vector.Box) interface{} {
+	return o.root.firstElementIn(&box)
+}
+
 // Remove Removes the specified element from the tree.
 // Generally, RemoveUsing should used as it is faster under
 // most circumstances.
@@ -80,6 +90,32 @@ func (o *Octree) RemoveUsing(element interface{}, node *Node) bool {
 		return node.remove(element)
 	}
 	return false
+}
+
+// Raycast will try to find interfaces in a direction from an origin with a maximum distance
+func (o *Octree) Raycast(origin erutan.NetVector3, direction erutan.NetVector3, maxDistance float64) interface{} {
+	// Default value in go ...
+	if maxDistance == -1 {
+		maxDistance = math.MaxFloat64
+	}
+	b := vector.Box{
+		Min: origin,
+		Max: vector.Add(origin, vector.Mul(direction, maxDistance)),
+	}
+	//utils.DebugLogf("box %v -> %v", b.Min.Y, b.Max.Y)
+	// TODO: optimization: should just stop at first element met, we don't care for others
+	// Implement sort of "firstelementin"
+	hits := o.ElementsIn(b)
+
+	if len(hits) == 0 {
+		return nil
+	}
+	utils.DebugLogf("Hit something: %v", hits[0])
+	return hits[0]
+}
+
+// Spherecast TODO ...
+func (o *Octree) Spherecast() {
 }
 
 // ToString Get a human readable representation of the state of
@@ -193,12 +229,11 @@ func (n *Node) elementsAt(point *erutan.NetVector3) []interface{} {
 }
 
 func (n *Node) elementsIn(box *vector.Box) []interface{} {
-	// get any alements in this node (or a descendant)
+	// get any elements in this node (or a descendant)
 	// within the specified box
 
 	if n.hasChildren {
 		elements := []interface{}{}
-
 		for _, child := range n.children {
 			if child.box.IsContainedIn(box) {
 				// fully contained
@@ -215,6 +250,30 @@ func (n *Node) elementsIn(box *vector.Box) []interface{} {
 	// when a leaf
 	if n.point != nil && box.ContainsPoint(n.point) {
 		return n.elements
+	}
+
+	return nil
+}
+
+func (n *Node) firstElementIn(box *vector.Box) interface{} {
+	// get first element in this node (or a descendant)
+	// within the specified box
+
+	if n.hasChildren {
+		for _, child := range n.children {
+			if child.box.IsContainedIn(box) {
+				// fully contained
+				return child.firstElementIn(&child.box)
+			} else if child.box.Contains(box) || child.box.Intersects(box) {
+				// partially contained
+				return child.firstElementIn(box)
+			}
+		}
+	}
+
+	// when a leaf
+	if n.point != nil && box.ContainsPoint(n.point) {
+		return n.elements[0] // TODO: is it correct, think of a test to check
 	}
 
 	return nil

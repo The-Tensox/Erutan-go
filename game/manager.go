@@ -4,6 +4,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/aquilax/go-perlin"
 	ecs "github.com/user/erutan/ecs"
 	erutan "github.com/user/erutan/protos/realtime"
 	utils "github.com/user/erutan/utils"
@@ -51,7 +52,7 @@ func (m *Manager) Run() {
 	h := &HerbivorousSystem{}
 	e := &EatableSystem{}
 	c := &CollisionSystem{}
-	c.New(&m.World)
+	//c.New(&m.World)
 	m.World.AddSystem(c)
 	m.World.AddSystem(h)
 	m.World.AddSystem(e)
@@ -60,18 +61,17 @@ func (m *Manager) Run() {
 	m.Watch.Add(h)
 	m.Watch.Add(e)
 
-	/*
-		p := perlin.NewPerlin(1, 1, 5, 100)
-		for x := 0.; x < utils.Config.GroundSize; x++ {
-			for y := 0.; y < utils.Config.GroundSize; y++ {
-				noise := p.Noise2D(x/10, y/10)
-				//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
-				m.AddGround(&erutan.NetVector3{X: x, Y: noise, Z: y}, 1)
-			}
+	p := perlin.NewPerlin(1, 1, 5, 100)
+	for x := 0.; x < utils.Config.GroundSize; x++ {
+		for y := 0.; y < utils.Config.GroundSize; y++ {
+			noise := p.Noise2D(x/10, y/10)
+			//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
+			m.AddGround(&erutan.NetVector3{X: x, Y: noise, Z: y}, 1)
+			//m.AddHerb(&erutan.NetVector3{X: x, Y: 10, Z: y})
 		}
-	*/
+	}
 
-	m.AddGround(&erutan.NetVector3{X: 0, Y: -utils.Config.GroundSize, Z: 0}, utils.Config.GroundSize)
+	//m.AddGround(&erutan.NetVector3{X: 0, Y: -utils.Config.GroundSize, Z: 0}, utils.Config.GroundSize)
 	/*
 		for i := 0; i < 10; i++ {
 			m.AddGround(utils.RandomPositionInsideSphere(&erutan.NetVector3{X: 0, Y: 0, Z: 0}, 10))
@@ -87,11 +87,12 @@ func (m *Manager) Run() {
 			})
 		}
 	*/
-	for i := 0; i < 20; i++ {
-		m.AddHerb()
+	for i := 0; i < 1; i++ {
+		m.AddHerb(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
+			utils.Config.GroundSize/2))
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 0; i++ {
 		m.AddHerbivorous(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
 			utils.Config.GroundSize/2), &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
 	}
@@ -146,14 +147,14 @@ func (m *Manager) SyncNewClient(tkn string) {
 	}
 }
 
-func (m *Manager) AddGround(position *erutan.NetVector3, sideLenght float64) {
+func (m *Manager) AddGround(position *erutan.NetVector3, sideLength float64) {
 	id := ecs.NewBasic()
 	ground := AnyObject{BasicEntity: &id}
 	ground.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
-		Shape:    utils.CreateCube(sideLenght),
+		Shape:    utils.CreateCube(sideLength),
 	}
 	ground.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   0,
@@ -185,12 +186,11 @@ func (m *Manager) AddGround(position *erutan.NetVector3, sideLenght float64) {
 	}
 }
 
-func (m *Manager) AddHerb() {
+func (m *Manager) AddHerb(position *erutan.NetVector3) {
 	id := ecs.NewBasic()
 	herb := AnyObject{BasicEntity: &id}
 	herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
-		Position: utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
-			utils.Config.GroundSize/2),
+		Position: position,
 		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
 		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
 		Shape:    utils.CreateCube(1),

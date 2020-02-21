@@ -175,6 +175,12 @@ type Box struct {
 	Max erutan.NetVector3
 }
 
+// New is the constructor of Box (main use of this is to avoid keyed instanciation)
+func (b *Box) New(min, max erutan.NetVector3) {
+	b.Min = min
+	b.Max = max
+}
+
 // Size Returns the dimensions of the Box.
 func (b *Box) Size() erutan.NetVector3 {
 	return Sub(b.Max, b.Min)
@@ -208,17 +214,18 @@ func (b *Box) IsContainedIn(o *Box) bool {
 // Intersects Returns whether any portion of this box intersects with
 // the specified box.
 func (b *Box) Intersects(o *Box) bool {
-	return (b.Min.X <= o.Max.X && b.Max.X >= o.Min.X) &&
-		(b.Min.Y <= o.Max.Y && b.Max.Y >= o.Min.Y) &&
-		(b.Min.Z <= o.Max.Z && b.Max.Z >= o.Min.Z)
 	/*
-		return !(b.Max.X < o.Min.X ||
-			o.Max.X < b.Min.X ||
-			b.Max.Y < o.Min.Y ||
-			o.Max.Y < b.Min.Y ||
-			b.Max.Z < o.Min.Z ||
-			o.Max.Z < b.Min.Z)
+		return (b.Min.X <= o.Max.X && b.Max.X >= o.Min.X) &&
+			(b.Min.Y <= o.Max.Y && b.Max.Y >= o.Min.Y) &&
+			(b.Min.Z <= o.Max.Z && b.Max.Z >= o.Min.Z)
 	*/
+	return !(b.Max.X < o.Min.X ||
+		o.Max.X < b.Min.X ||
+		b.Max.Y < o.Min.Y ||
+		o.Max.Y < b.Min.Y ||
+		b.Max.Z < o.Min.Z ||
+		o.Max.Z < b.Min.Z)
+
 }
 
 // MakeSubBoxes ...
