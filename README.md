@@ -55,6 +55,6 @@ export GRPC_VERBOSITY=INFO
 - [ ] More (useful) characteristics (no point in adding characteristics that doesn't help survival)
 - [ ] Environment-based evolution (stay near lakes, need more aquatic food, swim better idk, stay near desert, more resistant to sun ...)
 - [ ] Other languages libraries (Python, JS ...) allowing either other front-ends either building bots, client-side heavy computation stuff ...
-- [ ] Scalable (kd-tree, centralized state: redis ...)
+- [x] Octree
 - [ ] Deployable (GCP, custom, docker, kubernetes)
 - [ ] A lot more

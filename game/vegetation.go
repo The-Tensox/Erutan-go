@@ -56,17 +56,22 @@ func (e *EatableSystem) NotifyCallback(event utils.Event) {
 		if u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			u.b.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2,
+			newSc := u.b.Component_SpaceComponent
+			newSc.Position = utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2,
 				Y: utils.Config.GroundSize / 2},
 				utils.Config.GroundSize/2)
+			ManagerInstance.Watch.Notify(utils.Event{Value: EntityPhysicsUpdated{id: u.b.ID(), newSc: *newSc, dt: u.dt}})
+
 		}
 
 		if u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			u.a.Component_SpaceComponent.Position = utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2,
+			newSc := u.a.Component_SpaceComponent
+			newSc.Position = utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2,
 				Y: utils.Config.GroundSize / 2},
 				utils.Config.GroundSize/2)
+			ManagerInstance.Watch.Notify(utils.Event{Value: EntityPhysicsUpdated{id: u.a.ID(), newSc: *newSc, dt: u.dt}})
 		}
 
 	}

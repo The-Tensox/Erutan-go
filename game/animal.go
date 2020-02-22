@@ -98,7 +98,11 @@ func (h *HerbivorousSystem) Update(dt float64) {
 		distance := vector.Distance(*entity.Position, *entity.Target.Position)
 		newPos := vector.Add(*entity.Position,
 			vector.Mul(vector.Div(vector.Sub(*entity.Target.Position, *entity.Position), distance), dt*entity.MoveSpeed))
-		entity.Position = &newPos
+		newSc := *entity.Component_SpaceComponent
+		newSc.Position = &newPos
+		ManagerInstance.Watch.Notify(utils.Event{Value: EntityPhysicsUpdated{id: entity.ID(), newSc: newSc, dt: dt}})
+
+		//entity.Position = &newPos
 	}
 }
 

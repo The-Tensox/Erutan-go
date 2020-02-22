@@ -175,10 +175,12 @@ type Box struct {
 	Max erutan.NetVector3
 }
 
-// New is the constructor of Box (main use of this is to avoid keyed instanciation)
-func (b *Box) New(min, max erutan.NetVector3) {
-	b.Min = min
-	b.Max = max
+// NewBox is the constructor of Box (main use of this is to avoid keyed instanciation)
+func NewBox(min, max *erutan.NetVector3) *Box {
+	return &Box{
+		Min: Min(min, max), // Storing min / max in the right order
+		Max: Max(min, max),
+	}
 }
 
 // Size Returns the dimensions of the Box.
@@ -247,19 +249,15 @@ func (b *Box) MakeSubBoxes() [8]Box {
 
 // GetBox return a box based on position and scale of the object, not really correct,
 // should use size instead of scale
-func GetBox(position, scale erutan.NetVector3) Box {
-	return Box{
-		Min: erutan.NetVector3{X: position.X - scale.X/2, Y: position.Y - scale.Y/2, Z: position.Z - scale.Z/2},
-		Max: erutan.NetVector3{X: position.X + scale.X/2, Y: position.Y + scale.Y/2, Z: position.Z + scale.Z/2},
-	}
+func GetBox(position, scale erutan.NetVector3) *Box {
+	return NewBox(&erutan.NetVector3{X: position.X - scale.X/2, Y: position.Y - scale.Y/2, Z: position.Z - scale.Z/2},
+		&erutan.NetVector3{X: position.X + scale.X/2, Y: position.Y + scale.Y/2, Z: position.Z + scale.Z/2})
 }
 
 // GetBoxOfSize return a box based on position and size given
-func GetBoxOfSize(position erutan.NetVector3, size float64) Box {
-	return Box{
-		Min: erutan.NetVector3{X: position.X - size, Y: position.Y - size, Z: position.Z - size},
-		Max: erutan.NetVector3{X: position.X + size, Y: position.Y + size, Z: position.Z + size},
-	}
+func GetBoxOfSize(position erutan.NetVector3, size float64) *Box {
+	return NewBox(erutan.NewNetVector3(position.X-size, position.Y-size, position.Z-size),
+		erutan.NewNetVector3(position.X+size, position.Y+size, position.Z+size))
 }
 
 // MinimumTranslation tells how much an entity has to move to no longer overlap another entity.
@@ -307,5 +305,5 @@ func MinimumTranslation(rect1, rect2 Box) erutan.NetVector3 {
 // ToString Get a human readable representation of the state of
 // this box.
 func (b *Box) ToString() string {
-	return fmt.Sprintf("Box{min: %v, max: %v}", ToString(&b.Min), ToString(&b.Max))
+	return fmt.Sprintf("Box{Min: %v, Max: %v}", ToString(&b.Min), ToString(&b.Max))
 }

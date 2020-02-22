@@ -16,10 +16,10 @@ type Octree struct {
 }
 
 // NewOctree Makes a new octree with the given box.
-func NewOctree(box vector.Box) *Octree {
+func NewOctree(box *vector.Box) *Octree {
 	return &Octree{
 		root: &Node{
-			box: box,
+			box: *box,
 		},
 	}
 }
@@ -98,19 +98,13 @@ func (o *Octree) Raycast(origin erutan.NetVector3, direction erutan.NetVector3, 
 	if maxDistance == -1 {
 		maxDistance = math.MaxFloat64
 	}
-	b := vector.Box{
-		Min: origin,
-		Max: vector.Add(origin, vector.Mul(direction, maxDistance)),
-	}
-	//utils.DebugLogf("box %v -> %v", b.Min.Y, b.Max.Y)
-	// TODO: optimization: should just stop at first element met, we don't care for others
-	// Implement sort of "firstelementin"
-	hits := o.ElementsIn(b)
-
+	destination := vector.Add(origin, vector.Mul(direction, maxDistance))
+	hits := o.ElementsIn(*vector.NewBox(&origin, &destination))
 	if len(hits) == 0 {
 		return nil
 	}
-	utils.DebugLogf("Hit something: %v", hits[0])
+	utils.DebugLogf("hit: %v", hits)
+
 	return hits[0]
 }
 
@@ -273,7 +267,7 @@ func (n *Node) firstElementIn(box *vector.Box) interface{} {
 
 	// when a leaf
 	if n.point != nil && box.ContainsPoint(n.point) {
-		return n.elements[0] // TODO: is it correct, think of a test to check
+		return n.elements[0] // TODO: incorrect
 	}
 
 	return nil
