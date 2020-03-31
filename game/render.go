@@ -1,9 +1,9 @@
 package game
 
 import (
-	erutan "github.com/user/erutan/protos/realtime"
+	erutan "github.com/The-Tensox/erutan/protobuf"
 
-	"github.com/user/erutan/ecs"
+	"github.com/The-Tensox/erutan/ecs"
 )
 
 type renderEntity struct {

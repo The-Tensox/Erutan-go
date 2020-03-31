@@ -1,9 +1,9 @@
 package game
 
 import (
-	"github.com/user/erutan/ecs"
-	erutan "github.com/user/erutan/protos/realtime"
-	"github.com/user/erutan/utils"
+	"github.com/The-Tensox/erutan/ecs"
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
 )
 
 type AnyObject struct {

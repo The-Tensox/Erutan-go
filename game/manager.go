@@ -4,9 +4,10 @@ import (
 	"math"
 	"sync"
 
-	ecs "github.com/user/erutan/ecs"
-	erutan "github.com/user/erutan/protos/realtime"
-	utils "github.com/user/erutan/utils"
+	ecs "github.com/The-Tensox/erutan/ecs"
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	utils "github.com/The-Tensox/erutan/utils"
+	"github.com/aquilax/go-perlin"
 )
 
 var (
@@ -61,19 +62,17 @@ func (m *Manager) Run() {
 	m.Watch.Add(e)
 	m.Watch.Add(c)
 
-	/*
-		p := perlin.NewPerlin(1, 1, 5, 100)
-		for x := 0.; x < utils.Config.GroundSize; x++ {
-			for y := 0.; y < utils.Config.GroundSize; y++ {
-				noise := p.Noise2D(x/10, y/10)
-				//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
-				m.AddGround(&erutan.NetVector3{X: x, Y: noise, Z: y}, 1)
-				//m.AddHerb(&erutan.NetVector3{X: x, Y: 10, Z: y})
-			}
+	p := perlin.NewPerlin(1, 1, 5, 100)
+	for x := 0.; x < utils.Config.GroundSize; x++ {
+		for y := 0.; y < utils.Config.GroundSize; y++ {
+			noise := p.Noise2D(x/10, y/10)
+			//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
+			m.AddGround(&erutan.NetVector3{X: x, Y: noise, Z: y}, 1)
+			m.AddHerb(&erutan.NetVector3{X: x, Y: 5, Z: y})
 		}
-	*/
+	}
 
-	m.AddGround(&erutan.NetVector3{X: 0, Y: -utils.Config.GroundSize, Z: 0}, utils.Config.GroundSize)
+	//m.AddGround(&erutan.NetVector3{X: 0, Y: -utils.Config.GroundSize, Z: 0}, utils.Config.GroundSize)
 	/*
 		for i := 0; i < 10; i++ {
 			m.AddGround(utils.RandomPositionInsideSphere(&erutan.NetVector3{X: 0, Y: 0, Z: 0}, 10))
@@ -89,12 +88,12 @@ func (m *Manager) Run() {
 			})
 		}
 	*/
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 0; i++ {
 		m.AddHerb(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
 			utils.Config.GroundSize/2))
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 0; i++ {
 		// TODO: what happen if spawned with collision
 		m.AddHerbivorous(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
 			utils.Config.GroundSize/2), &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)

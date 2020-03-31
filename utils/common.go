@@ -7,12 +7,16 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"syscall"
+	"testing"
 	"time"
 
+	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	erutan "github.com/user/erutan/protos/realtime"
 	"golang.org/x/net/context"
 )
 
@@ -94,5 +98,14 @@ func GetProtoTime() float64 {
 func DoEvery(d time.Duration, f func(time.Time)) {
 	for x := range time.Tick(d) {
 		f(x)
+	}
+}
+
+// Equals fails the test if exp is not equal to act.
+func Equals(tb testing.TB, exp, act interface{}) {
+	if !reflect.DeepEqual(exp, act) {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
+		tb.FailNow()
 	}
 }

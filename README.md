@@ -10,8 +10,8 @@ To be used with [the Unity client](https://github.com/The-Tensox/Erutan-unity)
 ```bash
 export UNITY_PROJECT_PATH="/home/louis/Documents/unity/Erutan"
 go get github.com/The-Tensox/Erutan-go
-protoc -I protos/realtime --go_out=plugins=grpc:protos/realtime protos/realtime/realtime.proto
-cp protos/realtime/realtime.proto $UNITY_PROJECT_PATH/Assets/Protos/Realtime
+protoc -I protobuf --go_out=plugins=grpc:protobuf protobuf/*.proto
+cp protobuf/*.proto $UNITY_PROJECT_PATH/Assets/protobuf
 ```
 
 # SSL/TLS configuration
@@ -40,7 +40,7 @@ go ruin main.go
 # Tests
 
 ```bash
-go test ~/go/src/github.com/user/erutan/utils/ -v
+go test ~/go/src/github.com/The-Tensox/erutan/utils/ -v
 ```
 
 # Debug

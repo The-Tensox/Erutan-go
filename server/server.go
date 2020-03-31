@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/user/erutan/game"
-	erutan "github.com/user/erutan/protos/realtime"
-	"github.com/user/erutan/utils"
+	"github.com/The-Tensox/erutan/game"
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
 
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"

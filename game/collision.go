@@ -1,11 +1,12 @@
 package game
 
 import (
-	"github.com/user/erutan/ecs"
-	erutan "github.com/user/erutan/protos/realtime"
-	"github.com/user/erutan/utils"
-	"github.com/user/erutan/utils/octree"
-	"github.com/user/erutan/utils/vector"
+	"github.com/The-Tensox/erutan/ecs"
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
+	"github.com/The-Tensox/erutan/utils/vector"
+	"github.com/The-Tensox/octree"
+	"github.com/The-Tensox/protometry"
 )
 
 type collisionEntity struct {
@@ -23,7 +24,7 @@ type CollisionSystem struct {
 
 // New is the constructor of CollisionSystem
 func (c *CollisionSystem) New(w *ecs.World) {
-	c.entities = *octree.NewOctree(vector.GetBoxOfSize(*erutan.NewNetVector3(0, 0, 0), utils.Config.GroundSize))
+	c.entities = *octree.NewOctree(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize))
 }
 
 // Add adds an entity to the CollisionSystem. To be added, the entity has to have a basic and space component.
@@ -38,7 +39,7 @@ func (c *CollisionSystem) Add(basic *ecs.BasicEntity,
 // Remove removes an entity from the CollisionSystem.
 func (c *CollisionSystem) Remove(basic ecs.BasicEntity) {
 	// TODO: take advantage of tree DS to do O(logn) removal instead of this O(n)+?
-	for _, entity := range c.entities.ElementsIn(*vector.GetBoxOfSize(erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize)) {
+	for _, entity := range c.entities.ElementsIn(vector.GetBoxOfSize(erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize)) {
 		if val, ok := entity.(collisionEntity); ok {
 			if val.ID() == basic.ID() {
 				c.entities.Remove(val)
@@ -54,38 +55,40 @@ func (c *CollisionSystem) RemoveByPosition(position erutan.NetVector3) {
 // Update checks the entities for collision with eachother. Only Main entities are check for collision explicitly.
 // If one of the entities are solid, the SpaceComponent is adjusted so that the other entities don't pass through it.
 func (c *CollisionSystem) Update(dt float64) {
+	// Gravity, checking if there is an object below, otherwise we fall ! (inefficient)
+	elements := c.entities.ElementsIn(vector.GetBoxOfSize(erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize))
+	utils.DebugLogf("nb element %v", len(elements))
+	for _, e := range elements {
+		if a, ok := e.(collisionEntity); ok {
+			origin := *a.Position
+			aBox := vector.GetBox(*a.Position, *a.Scale)
 
+			// The raycast is thrown out from just below the object
+			origin.Y -= ((aBox.Size().Y / 2) + 0.1)
+
+			// Toward the bottom
+			direction := erutan.NetVector3{X: 0, Y: -1, Z: 0}
+
+			// Only fall if using gravity and nothing is below
+			if a.UseGravity && c.entities.Raycast(origin, direction, 0.1) == nil {
+				a.Position.Y -= (1 * dt) // TODO: mass -> heavier fall faster ...
+			}
+		}
+	}
 }
 
 // PhysicsUpdate will check collisions with new space and update accordingly
 func (c *CollisionSystem) PhysicsUpdate(id uint64, newSc erutan.Component_SpaceComponent, dt float64) {
-	//c.entities.Range(func(elements []interface{}) {
-	elements := c.entities.ElementsIn(*vector.GetBoxOfSize(erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize))
-	/*
-		if v, ok := elements[rand.Intn(len(elements)-1)].(collisionEntity); ok {
-			utils.DebugLogf("%v", v.UseGravity, v.BehaviourType)
+	elements := c.entities.ElementsIn(vector.GetBoxOfSize(erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize))
 
-		}
-		return
-	*/
 	for i := range elements {
 		// Find the element requesting physics update
 		if a, ok := elements[i].(collisionEntity); ok && a.ID() == id {
-			iBox := *vector.GetBox(*a.Position, *a.Scale)
-			// Gravity, checking if there is an object below, otherwise we fall ! (inefficient)
-			/*
-				origin := *a.Position
-				origin.Y -= ((iBox.Size().Y / 2) + 0.1)
-				//utils.DebugLogf("raycast origin %v, me %v", origin.Y, a.Position.Y)
-				direction := erutan.NetVector3{X: 0, Y: -1, Z: 0}
-				if a.UseGravity && c.entities.Raycast(origin, direction, 0.1) == nil {
-					a.Position.Y -= (1 * dt) // TODO: mass -> heavier fall faster ...
-				}
-			*/
+			iBox := vector.GetBox(*a.Position, *a.Scale)
 			for j := 0; j < len(elements); j++ {
 				// Ignore self collision
 				if b, ok := elements[j].(collisionEntity); ok && b.ID() != id {
-					jBox := *vector.GetBox(*b.Position, *b.Scale)
+					jBox := vector.GetBox(*b.Position, *b.Scale)
 					if iBox.Intersects(&jBox) {
 						/*
 							translation := vector.MinimumTranslation(iBox, jBox)
@@ -101,7 +104,6 @@ func (c *CollisionSystem) PhysicsUpdate(id uint64, newSc erutan.Component_SpaceC
 			*a.Component_SpaceComponent = newSc
 		}
 	}
-	//})
 }
 
 func (c *CollisionSystem) NotifyCallback(event utils.Event) {

@@ -1,12 +1,12 @@
 package game
 
 import (
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
+	"github.com/The-Tensox/erutan/utils/vector"
 	"github.com/golang/protobuf/ptypes"
-	erutan "github.com/user/erutan/protos/realtime"
-	"github.com/user/erutan/utils"
-	"github.com/user/erutan/utils/vector"
 
-	"github.com/user/erutan/ecs"
+	"github.com/The-Tensox/erutan/ecs"
 )
 
 // AddLife set health component life, clip it and return true if entity is dead

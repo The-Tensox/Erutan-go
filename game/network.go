@@ -3,11 +3,11 @@ package game
 import (
 	"math"
 
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
 	"github.com/golang/protobuf/ptypes"
-	erutan "github.com/user/erutan/protos/realtime"
-	"github.com/user/erutan/utils"
 
-	"github.com/user/erutan/ecs"
+	"github.com/The-Tensox/erutan/ecs"
 )
 
 type networkEntity struct {

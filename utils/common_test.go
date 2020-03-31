@@ -3,7 +3,7 @@ package utils
 import (
 	"testing"
 
-	erutan "github.com/user/erutan/protos/realtime"
+	erutan "github.com/The-Tensox/erutan/protobuf"
 )
 
 func TestSpaceComponent_RandomPositionInsideCircle(t *testing.T) {
