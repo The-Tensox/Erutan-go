@@ -90,14 +90,16 @@ func (m *Manager) Run() {
 		}
 	*/
 	for i := 0; i < 0; i++ {
-		m.AddHerb(protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize/2, utils.Config.GroundSize/2),
-			utils.Config.GroundSize/2))
+		p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize/2, utils.Config.GroundSize/2),
+			utils.Config.GroundSize/2)
+		m.AddHerb(&p)
 	}
 
 	for i := 0; i < 0; i++ {
 		// TODO: what happen if spawned with collision
-		m.AddHerbivorous(protometry.RandomCirclePoint(protometry.NewVectorN(utils.Config.GroundSize/2, utils.Config.GroundSize/2),
-			utils.Config.GroundSize/2), protometry.NewVectorN(1, 1, 1), -1)
+		p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize/2, utils.Config.GroundSize/2),
+			utils.Config.GroundSize/2)
+		m.AddHerbivorous(&p, protometry.NewVectorN(1, 1, 1), -1)
 	}
 
 	// Main loop

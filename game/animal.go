@@ -99,8 +99,8 @@ func (h *HerbivorousSystem) Update(dt float64) {
 		newPos := entity.Position.Add(*entity.Target.Position.Sub(*entity.Position).Mul(distance).Div(dt * entity.MoveSpeed))
 		newSc := *entity.Component_SpaceComponent
 		newSc.Position = newPos
+		//entity.Component_SpaceComponent.Update(newSc)
 		ManagerInstance.Watch.Notify(utils.Event{Value: EntityPhysicsUpdated{id: entity.ID(), newSc: newSc, dt: dt}})
-
 		//entity.Position = &newPos
 	}
 }
