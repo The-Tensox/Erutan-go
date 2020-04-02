@@ -12,7 +12,8 @@ export UNITY_PROJECT_PATH="/home/louis/Documents/unity/Erutan"
 go get github.com/The-Tensox/Erutan-go
 protoc --go_out=plugins=grpc:. protobuf/protometry/*.proto --go_opt=paths=source_relative
 protoc --go_out=plugins=grpc:. protobuf/*.proto --go_opt=paths=source_relative
-cp -r protobuf/*.proto $UNITY_PROJECT_PATH/Assets/protobuf
+cp protobuf/*.proto $UNITY_PROJECT_PATH/Assets/protobuf
+cp protobuf/protometry/*.proto $UNITY_PROJECT_PATH/Assets/protobuf/protometry
 ```
 
 # SSL/TLS configuration

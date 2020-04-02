@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "protobuf/protometry/vectorn.proto";
 import "protobuf/protometry/quaternionn.proto";
 option go_package = "github.com/The-Tensox/erutan";
+option csharp_namespace = "Erutan";
 
 /*
     The Erutan service.

@@ -107,6 +107,7 @@ func (m *Manager) Run() {
 	for {
 		dt := float64(utils.GetProtoTime()-lastUpdateTime) / math.Pow(10, 9)
 		if dt > 0.0001 { // 50fps
+
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
 			m.World.Update(dt * utils.Config.TimeScale)
 			lastUpdateTime = utils.GetProtoTime()

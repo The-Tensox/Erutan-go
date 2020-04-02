@@ -4,6 +4,7 @@ package protometry;
 
 import "protobuf/protometry/vectorn.proto";
 option go_package = "github.com/The-Tensox/protometry";
+option csharp_namespace = "Protometry";
 
 message QuaternionN {
     VectorN value = 1; // 4-d vector

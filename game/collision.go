@@ -53,23 +53,26 @@ func (c *CollisionSystem) Remove(basic ecs.BasicEntity) {
 // If one of the entities are solid, the SpaceComponent is adjusted so that the other entities don't pass through it.
 func (c *CollisionSystem) Update(dt float64) {
 	// Gravity, checking if there is an object below, otherwise we fall ! (inefficient)
-	/*
-		elements := c.entities.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVectorN(0, 0, 0), utils.Config.GroundSize))
-		for _, e := range elements {
-			if a, ok := e.Data.(collisionEntity); ok {
-				origin := *a.Position
 
-				// The raycast is thrown out from just below the object
-				origin.Y -= ((e.Bounds.Size().Y / 2) + 0.1)
+	elements := c.entities.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVectorN(0, 0, 0), utils.Config.GroundSize))
 
-				// Only fall if using gravity and nothing is below
-				if a.UseGravity &&
-					len(c.entities.GetColliding(*protometry.NewBox(append(origin, protometry.NewVectorN(0, -1, 0)...)))) == 0 {
-					a.Position.Set(1, a.Position.Get(1)-1*dt) // TODO: mass -> heavier fall faster ...
-				}
+	for _, e := range elements {
+		if a, ok := e.Data.(collisionEntity); ok {
+			origin := a.Position
+
+			// The raycast is thrown out from just below the object
+			origin.Set(1, origin.Get(1)-(e.Bounds.GetSize()/2)+0.1)
+			destination := origin.Sub(*protometry.NewVectorN(0, 1, 0))
+			b := *protometry.NewBox(*protometry.Concatenate(origin, destination))
+			utils.DebugLogf("yo %v", b)
+
+			// Only fall if using gravity and nothing is below
+			if a.UseGravity && len(c.entities.GetColliding(b)) == 0 {
+				a.Position.Set(1, a.Position.Get(1)-1*dt) // TODO: mass -> heavier fall faster ...
 			}
 		}
-	*/
+	}
+
 }
 
 // PhysicsUpdate will check collisions with new space and update accordingly

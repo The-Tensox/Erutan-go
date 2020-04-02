@@ -4,6 +4,8 @@ github.com/The-Tensox/octree v0.0.0-20200401181246-11a4110a7917 h1:X8W3RwDWmni5f
 github.com/The-Tensox/octree v0.0.0-20200401181246-11a4110a7917/go.mod h1:P4AE3wYQc8bKVtsmTo4cbygUSD9Eh8DlGzKZjqQge8M=
 github.com/The-Tensox/protometry v0.0.0-20200329160116-a97dbae83b93 h1:TQLM5kN9/eLkzCVvPE0QxjP6DdCRo6pR4Ann88+bH+g=
 github.com/The-Tensox/protometry v0.0.0-20200329160116-a97dbae83b93/go.mod h1:VbYEXDN4pIGMe2wZ5dxVMXXdZl8bY7avbECj8JKxoJM=
+github.com/The-Tensox/protometry v0.0.0-20200402182624-0a8c69d9271d h1:JhweHigmkKysV3i/VsRiIpmxcS/bHETzZELppQtEsPA=
+github.com/The-Tensox/protometry v0.0.0-20200402182624-0a8c69d9271d/go.mod h1:VbYEXDN4pIGMe2wZ5dxVMXXdZl8bY7avbECj8JKxoJM=
 github.com/aquilax/go-perlin v0.0.0-20191229124216-0af9ce917c28 h1:iQUvYFmTKLXaDf3N0YfsJG5vgVtA1La82fHFDkpX5y4=
 github.com/aquilax/go-perlin v0.0.0-20191229124216-0af9ce917c28/go.mod h1:z9Rl7EM4BZY0Ikp2fEN1I5mKSOJ26HQpk0O2TBdN2HE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
