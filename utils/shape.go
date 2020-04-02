@@ -1,8 +1,8 @@
 package utils
 
 import (
+	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/protometry"
-	erutan "github.com/user/erutan/protos/realtime"
 )
 
 // CreateCube return a shape representing a cube

@@ -4,6 +4,7 @@ import (
 	"github.com/The-Tensox/erutan/ecs"
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/erutan/utils"
+	"github.com/The-Tensox/protometry"
 )
 
 type AnyObject struct {
@@ -57,8 +58,8 @@ func (e *EatableSystem) NotifyCallback(event utils.Event) {
 			u.b.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
 			newSc := u.b.Component_SpaceComponent
-			newSc.Position = utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2,
-				Y: utils.Config.GroundSize / 2},
+			newSc.Position = protometry.RandomCirclePoint(protometry.NewVectorN(utils.Config.GroundSize/2,
+				utils.Config.GroundSize/2),
 				utils.Config.GroundSize/2)
 			ManagerInstance.Watch.Notify(utils.Event{Value: EntityPhysicsUpdated{id: u.b.ID(), newSc: *newSc, dt: u.dt}})
 
@@ -68,8 +69,8 @@ func (e *EatableSystem) NotifyCallback(event utils.Event) {
 			u.a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
 			newSc := u.a.Component_SpaceComponent
-			newSc.Position = utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2,
-				Y: utils.Config.GroundSize / 2},
+			newSc.Position = protometry.RandomCirclePoint(protometry.NewVectorN(utils.Config.GroundSize/2,
+				utils.Config.GroundSize/2),
 				utils.Config.GroundSize/2)
 			ManagerInstance.Watch.Notify(utils.Event{Value: EntityPhysicsUpdated{id: u.a.ID(), newSc: *newSc, dt: u.dt}})
 		}

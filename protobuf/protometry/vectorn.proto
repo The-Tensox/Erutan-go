@@ -1,6 +1,8 @@
 syntax = "proto3";
 
-package erutan.protometry;
+package protometry;
+option go_package = "github.com/The-Tensox/protometry";
+
 
 message VectorN {
     repeated double dimensions = 1;

@@ -1,9 +1,11 @@
 syntax = "proto3";
 
 package erutan;
+
 import "google/protobuf/timestamp.proto";
 import "protobuf/protometry/vectorn.proto";
-import public "protobuf/protometry/quaternionn.proto";
+import "protobuf/protometry/quaternionn.proto";
+option go_package = "github.com/The-Tensox/erutan";
 
 /*
     The Erutan service.
@@ -22,10 +24,10 @@ message Metadata {
 
 // Shape is a ...
 message Shape {
-	repeated erutan.protometry.VectorN vertices = 2;
+	repeated protometry.VectorN vertices = 2;
 	repeated int32 tris = 3;
-	repeated erutan.protometry.VectorN normals = 4;
-	repeated erutan.protometry.VectorN uvs = 5;
+	repeated protometry.VectorN normals = 4;
+	repeated protometry.VectorN uvs = 5;
 }
 
 message Collider {
@@ -54,9 +56,9 @@ message Component {
         PhysicsComponent physics = 7;
     }
     message SpaceComponent {
-        erutan.protometry.VectorN position = 1;
-        erutan.protometry.QuaternionN rotation = 2;
-        erutan.protometry.VectorN scale = 3;
+        protometry.VectorN position = 1;
+        protometry.QuaternionN rotation = 2;
+        protometry.VectorN scale = 3;
         Shape shape = 4;
     }
     message SpaceTimeComponent {
@@ -70,7 +72,7 @@ message Component {
         double move_speed = 1;
     }
     message TargetComponent {
-        erutan.protometry.VectorN target = 1;
+        protometry.VectorN target = 1;
     }
     message RenderComponent {
         float red = 1;
@@ -121,12 +123,12 @@ message Packet {
 
     message UpdatePositionPacket {
         uint64 entity_id = 1;
-        erutan.protometry.VectorN position = 2;
+        protometry.VectorN position = 2;
     }
 
     message UpdateRotationPacket {
         uint64 entity_id = 1;
-        erutan.protometry.QuaternionN rotation = 2;
+        protometry.QuaternionN rotation = 2;
     }
 
     message DestroyEntityPacket {

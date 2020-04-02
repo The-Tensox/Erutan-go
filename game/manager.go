@@ -7,6 +7,7 @@ import (
 	ecs "github.com/The-Tensox/erutan/ecs"
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	utils "github.com/The-Tensox/erutan/utils"
+	"github.com/The-Tensox/protometry"
 	"github.com/aquilax/go-perlin"
 )
 
@@ -67,15 +68,15 @@ func (m *Manager) Run() {
 		for y := 0.; y < utils.Config.GroundSize; y++ {
 			noise := p.Noise2D(x/10, y/10)
 			//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
-			m.AddGround(&erutan.NetVector3{X: x, Y: noise, Z: y}, 1)
-			m.AddHerb(&erutan.NetVector3{X: x, Y: 5, Z: y})
+			m.AddGround(protometry.NewVectorN(x, noise, y), 1)
+			m.AddHerb(protometry.NewVectorN(x, 5, y))
 		}
 	}
 
-	//m.AddGround(&erutan.NetVector3{X: 0, Y: -utils.Config.GroundSize, Z: 0}, utils.Config.GroundSize)
+	//m.AddGround(&protometry.VectorN{X: 0, Y: -utils.Config.GroundSize, Z: 0}, utils.Config.GroundSize)
 	/*
 		for i := 0; i < 10; i++ {
-			m.AddGround(utils.RandomPositionInsideSphere(&erutan.NetVector3{X: 0, Y: 0, Z: 0}, 10))
+			m.AddGround(protometry.RandomSpherePoint(&protometry.VectorN{X: 0, Y: 0, Z: 0}, 10))
 		}
 	*/
 	// Debug thing, wait client
@@ -89,14 +90,14 @@ func (m *Manager) Run() {
 		}
 	*/
 	for i := 0; i < 0; i++ {
-		m.AddHerb(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
+		m.AddHerb(protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize/2, utils.Config.GroundSize/2),
 			utils.Config.GroundSize/2))
 	}
 
 	for i := 0; i < 0; i++ {
 		// TODO: what happen if spawned with collision
-		m.AddHerbivorous(utils.RandomPositionInsideCircle(&erutan.NetVector2{X: utils.Config.GroundSize / 2, Y: utils.Config.GroundSize / 2},
-			utils.Config.GroundSize/2), &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
+		m.AddHerbivorous(protometry.RandomCirclePoint(protometry.NewVectorN(utils.Config.GroundSize/2, utils.Config.GroundSize/2),
+			utils.Config.GroundSize/2), protometry.NewVectorN(1, 1, 1), -1)
 	}
 
 	// Main loop
@@ -132,7 +133,7 @@ func (m *Manager) Listen() {
 						sc = *tmp
 					}
 				}
-				m.AddHerbivorous(sc.Position, &erutan.NetVector3{X: 1, Y: 1, Z: 1}, -1)
+				m.AddHerbivorous(sc.Position, protometry.NewVectorN(1, 1, 1), -1)
 			default:
 				utils.DebugLogf("Client sent unimplemented packet: %v", t)
 			}
@@ -149,18 +150,18 @@ func (m *Manager) SyncNewClient(tkn string) {
 	}
 }
 
-func (m *Manager) AddGround(position *erutan.NetVector3, sideLength float64) {
+func (m *Manager) AddGround(position *protometry.VectorN, sideLength float64) {
 	id := ecs.NewBasic()
 	ground := AnyObject{BasicEntity: &id}
 	ground.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
-		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
-		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
+		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
+		Scale:    protometry.NewVectorN(1, 1, 1),
 		Shape:    utils.CreateCube(sideLength),
 	}
 	ground.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   0,
-		Green: -float32(position.Y),
+		Green: -float32(position.Get(1)),
 		Blue:  0,
 	}
 	ground.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
@@ -188,13 +189,13 @@ func (m *Manager) AddGround(position *erutan.NetVector3, sideLength float64) {
 	}
 }
 
-func (m *Manager) AddHerb(position *erutan.NetVector3) {
+func (m *Manager) AddHerb(position *protometry.VectorN) {
 	id := ecs.NewBasic()
 	herb := AnyObject{BasicEntity: &id}
 	herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
-		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
-		Scale:    &erutan.NetVector3{X: 1, Y: 1, Z: 1},
+		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
+		Scale:    protometry.NewVectorN(1, 1, 1),
 		Shape:    utils.CreateCube(1),
 	}
 	herb.Component_RenderComponent = &erutan.Component_RenderComponent{
@@ -229,13 +230,13 @@ func (m *Manager) AddHerb(position *erutan.NetVector3) {
 	}
 }
 
-func (m *Manager) AddHerbivorous(position *erutan.NetVector3, scale *erutan.NetVector3, speed float64) {
+func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry.VectorN, speed float64) {
 	id := ecs.NewBasic()
 	herbivorous := Herbivorous{BasicEntity: &id}
 	herbivorous.Component_HealthComponent = &erutan.Component_HealthComponent{Life: 40}
 	herbivorous.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
-		Rotation: &erutan.NetQuaternion{X: 0, Y: 0, Z: 0, W: 0},
+		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
 		Scale:    scale,
 		Shape:    utils.CreateCube(1),
 	}

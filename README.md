@@ -10,8 +10,9 @@ To be used with [the Unity client](https://github.com/The-Tensox/Erutan-unity)
 ```bash
 export UNITY_PROJECT_PATH="/home/louis/Documents/unity/Erutan"
 go get github.com/The-Tensox/Erutan-go
-protoc -I protobuf --go_out=plugins=grpc:protobuf protobuf/*.proto
-cp protobuf/*.proto $UNITY_PROJECT_PATH/Assets/protobuf
+protoc --go_out=plugins=grpc:. protobuf/protometry/*.proto --go_opt=paths=source_relative
+protoc --go_out=plugins=grpc:. protobuf/*.proto --go_opt=paths=source_relative
+cp -r protobuf/*.proto $UNITY_PROJECT_PATH/Assets/protobuf
 ```
 
 # SSL/TLS configuration

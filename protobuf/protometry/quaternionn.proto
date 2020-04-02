@@ -1,9 +1,10 @@
 syntax = "proto3";
 
-package erutan.protometry;
+package protometry;
 
 import "protobuf/protometry/vectorn.proto";
+option go_package = "github.com/The-Tensox/protometry";
 
 message QuaternionN {
-    erutan.protometry.VectorN value = 1; // 4-d vector
+    VectorN value = 1; // 4-d vector
 }

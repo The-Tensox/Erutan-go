@@ -3,7 +3,6 @@ package game
 import (
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/erutan/utils"
-	"github.com/The-Tensox/erutan/utils/vector"
 	"github.com/golang/protobuf/ptypes"
 
 	"github.com/The-Tensox/erutan/ecs"
@@ -80,7 +79,7 @@ func (h *HerbivorousSystem) Remove(basic ecs.BasicEntity) {
 
 func (h *HerbivorousSystem) Update(dt float64) {
 	for indexEntity, entity := range h.entities {
-		volume := entity.Component_SpaceComponent.Scale.X * entity.Component_SpaceComponent.Scale.Y * entity.Component_SpaceComponent.Scale.Z
+		volume := entity.Component_SpaceComponent.Scale.Get(0) * entity.Component_SpaceComponent.Scale.Get(1) * entity.Component_SpaceComponent.Scale.Get(2)
 
 		// Every animal lose life proportional to deltatime, volume and speed
 		// So bigger and faster animals need more food
@@ -95,11 +94,11 @@ func (h *HerbivorousSystem) Update(dt float64) {
 		if entity.Target == nil {
 			continue // There is no target / animals
 		}
-		distance := vector.Distance(*entity.Position, *entity.Target.Position)
-		newPos := vector.Add(*entity.Position,
-			vector.Mul(vector.Div(vector.Sub(*entity.Target.Position, *entity.Position), distance), dt*entity.MoveSpeed))
+		distance := entity.Position.Distance(*entity.Target.Position)
+		// TODO: CHECK AGAIN THIS OPERATION ...
+		newPos := entity.Position.Add(*entity.Target.Position.Sub(*entity.Position).Mul(distance).Div(dt * entity.MoveSpeed))
 		newSc := *entity.Component_SpaceComponent
-		newSc.Position = &newPos
+		newSc.Position = newPos
 		ManagerInstance.Watch.Notify(utils.Event{Value: EntityPhysicsUpdated{id: entity.ID(), newSc: newSc, dt: dt}})
 
 		//entity.Position = &newPos
@@ -128,7 +127,7 @@ func (h *HerbivorousSystem) findTarget(indexEntity int, entity *herbivorousEntit
 		if f, ok := e.(*EatableSystem); ok && len(f.entities) > 0 {
 			minPosition := f.entities[0]
 			for _, eatableEntity := range f.entities {
-				if vector.Distance(*entity.Position, *eatableEntity.Position) < vector.Distance(*entity.Position, *minPosition.Position) {
+				if entity.Position.Distance(*eatableEntity.Position) < entity.Position.Distance(*minPosition.Position) {
 					minPosition = eatableEntity
 				}
 			}
@@ -187,7 +186,7 @@ func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
 				AddLife(*a.BasicEntity, a.Component_HealthComponent, -50)
 				AddLife(*b.BasicEntity, b.Component_HealthComponent, -50)
 				speed := ((a.MoveSpeed + b.MoveSpeed) / 2) * utils.RandFloats(0.5, 1.5)
-				scale := vector.Mul(vector.Div(vector.Add(*a.Scale, *b.Scale), 2), utils.RandFloats(0.5, 1.5))
+				scale := a.Scale.Add(*b.Scale).Div(2).Mul(utils.RandFloats(0.5, 1.5))
 
 				// Clipping scale ... TODO: add min & max scale somewhere
 				clip := func(val float64, min float64, max float64) float64 {
@@ -199,14 +198,14 @@ func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
 						return val
 					}
 				}
-				scale.X = clip(scale.X, 0.1, 5)
-				scale.Y = clip(scale.Y, 0.1, 5)
-				scale.Z = clip(scale.Z, 0.1, 5)
+				scale.Set(0, clip(scale.Get(0), 0.1, 5))
+				scale.Set(1, clip(scale.Get(1), 0.1, 5))
+				scale.Set(2, clip(scale.Get(2), 0.1, 5))
 				speed = clip(speed, 5, 80)
 				position := a.Position
-				position.Y = scale.Y // To stay above ground
+				position.Set(1, scale.Get(1)) // To stay above ground
 				//utils.DebugLogf("Scale: %v", scale)
-				ManagerInstance.AddHerbivorous(position, &scale, speed)
+				ManagerInstance.AddHerbivorous(position, scale, speed)
 			}
 		}
 	}
