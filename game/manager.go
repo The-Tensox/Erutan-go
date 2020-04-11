@@ -8,7 +8,6 @@ import (
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	utils "github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/protometry"
-	"github.com/aquilax/go-perlin"
 )
 
 var (
@@ -50,30 +49,30 @@ func Initialize() {
 func (m *Manager) Run() {
 	go m.Listen()
 
-	h := &HerbivorousSystem{}
-	e := &EatableSystem{}
-	c := &CollisionSystem{}
-	//c.New(&m.World)
+	h := NewHerbivorousSystem()
+	e := NewEatableSystem()
+	c := NewCollisionSystem()
 	m.World.AddSystem(c)
 	m.World.AddSystem(h)
 	m.World.AddSystem(e)
-	m.World.AddSystem(&NetworkSystem{lastUpdateTime: utils.GetProtoTime()})
+	m.World.AddSystem(NewNetworkSystem(utils.GetProtoTime()))
 
 	m.Watch.Add(h)
 	m.Watch.Add(e)
 	m.Watch.Add(c)
 
-	p := perlin.NewPerlin(1, 1, 5, 100)
-	for x := 0.; x < utils.Config.GroundSize; x++ {
-		for y := 0.; y < utils.Config.GroundSize; y++ {
-			noise := p.Noise2D(x/10, y/10)
-			//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
-			m.AddGround(protometry.NewVectorN(x, noise, y), 1)
-			m.AddHerb(protometry.NewVectorN(x, 5, y))
-		}
-	}
+	gs := utils.Config.GroundSize - 1
+	//p := perlin.NewPerlin(1, 1, 5, 100)
+	//for x := 0.; x < utils.Config.GroundSize; x++ {
+	//	for y := 0.; y < utils.Config.GroundSize; y++ {
+	//		noise := p.Noise2D(x/10, y/10)
+	//		//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
+	//		m.AddGround(protometry.NewVectorN(x, noise, y), 1)
+	//		m.AddHerb(protometry.NewVectorN(x, 5, y))
+	//	}
+	//}
 
-	//m.AddGround(&protometry.VectorN{X: 0, Y: -utils.Config.GroundSize, Z: 0}, utils.Config.GroundSize)
+	//m.AddGround(protometry.NewVectorN(0, -gs / 2, 0), gs / 4)
 	/*
 		for i := 0; i < 10; i++ {
 			m.AddGround(protometry.RandomSpherePoint(&protometry.VectorN{X: 0, Y: 0, Z: 0}, 10))
@@ -89,23 +88,20 @@ func (m *Manager) Run() {
 			})
 		}
 	*/
-	for i := 0; i < 0; i++ {
-		p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize/2, utils.Config.GroundSize/2),
-			utils.Config.GroundSize/2)
+	for i := 0; i < 5; i++ {
+		p := protometry.RandomCirclePoint(*protometry.NewVectorN(0, 0), gs / 4)
 		m.AddHerb(&p)
 	}
 
-	for i := 0; i < 0; i++ {
-		// TODO: what happen if spawned with collision
-		p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize/2, utils.Config.GroundSize/2),
-			utils.Config.GroundSize/2)
+	for i := 0; i < 5; i++ {
+		p := protometry.RandomCirclePoint(*protometry.NewVectorN(0, 0), gs / 4)
 		m.AddHerbivorous(&p, protometry.NewVectorN(1, 1, 1), -1)
 	}
 
 	// Main loop
 	lastUpdateTime := utils.GetProtoTime()
 	for {
-		dt := float64(utils.GetProtoTime()-lastUpdateTime) / math.Pow(10, 9)
+		dt := utils.GetProtoTime()-lastUpdateTime/ math.Pow(10, 9)
 		if dt > 0.0001 { // 50fps
 
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
@@ -154,8 +150,8 @@ func (m *Manager) SyncNewClient(tkn string) {
 }
 
 func (m *Manager) AddGround(position *protometry.VectorN, sideLength float64) {
-	id := ecs.NewBasic()
-	ground := AnyObject{BasicEntity: &id}
+	id := ecs.NewId()
+	ground := AnyObject{Id: id}
 	ground.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
@@ -177,24 +173,24 @@ func (m *Manager) AddGround(position *protometry.VectorN, sideLength float64) {
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *CollisionSystem:
-			sys.Add(ground.BasicEntity,
+			sys.Add(id,
 				ground.Component_SpaceComponent,
 				ground.Component_BehaviourTypeComponent,
 				ground.Component_PhysicsComponent)
 		case *NetworkSystem:
-			sys.Add(ground.BasicEntity, []*erutan.Component{
-				&erutan.Component{Type: &erutan.Component_Space{Space: ground.Component_SpaceComponent}},
-				&erutan.Component{Type: &erutan.Component_Render{Render: ground.Component_RenderComponent}},
+			sys.Add(id, []*erutan.Component{
+				{Type: &erutan.Component_Space{Space: ground.Component_SpaceComponent}},
+				{Type: &erutan.Component_Render{Render: ground.Component_RenderComponent}},
 			})
 		case *RenderSystem:
-			sys.Add(ground.BasicEntity, ground.Component_RenderComponent)
+			sys.Add(id, ground.Component_RenderComponent)
 		}
 	}
 }
 
 func (m *Manager) AddHerb(position *protometry.VectorN) {
-	id := ecs.NewBasic()
-	herb := AnyObject{BasicEntity: &id}
+	id := ecs.NewId()
+	herb := AnyObject{Id: id}
 	herb.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
@@ -216,26 +212,26 @@ func (m *Manager) AddHerb(position *protometry.VectorN) {
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *CollisionSystem:
-			sys.Add(herb.BasicEntity,
+			sys.Add(id,
 				herb.Component_SpaceComponent,
 				herb.Component_BehaviourTypeComponent,
 				herb.Component_PhysicsComponent)
 		case *EatableSystem:
-			sys.Add(herb.BasicEntity, herb.Component_SpaceComponent)
+			sys.Add(id, herb.Component_SpaceComponent)
 		case *NetworkSystem:
-			sys.Add(herb.BasicEntity, []*erutan.Component{
-				&erutan.Component{Type: &erutan.Component_Space{Space: herb.Component_SpaceComponent}},
-				&erutan.Component{Type: &erutan.Component_Render{Render: herb.Component_RenderComponent}},
+			sys.Add(id, []*erutan.Component{
+				{Type: &erutan.Component_Space{Space: herb.Component_SpaceComponent}},
+				{Type: &erutan.Component_Render{Render: herb.Component_RenderComponent}},
 			})
 		case *RenderSystem:
-			sys.Add(herb.BasicEntity, herb.Component_RenderComponent)
+			sys.Add(id, herb.Component_RenderComponent)
 		}
 	}
 }
 
 func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry.VectorN, speed float64) {
-	id := ecs.NewBasic()
-	herbivorous := Herbivorous{BasicEntity: &id}
+	id := ecs.NewId()
+	herbivorous := Herbivorous{Id: id}
 	herbivorous.Component_HealthComponent = &erutan.Component_HealthComponent{Life: 40}
 	herbivorous.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
@@ -243,6 +239,7 @@ func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry
 		Scale:    scale,
 		Shape:    utils.CreateCube(1),
 	}
+
 	herbivorous.Target = nil // target
 	herbivorous.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   1,
@@ -266,25 +263,25 @@ func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *CollisionSystem:
-			sys.Add(herbivorous.BasicEntity,
+			sys.Add(id,
 				herbivorous.Component_SpaceComponent,
 				herbivorous.Component_BehaviourTypeComponent,
 				herbivorous.Component_PhysicsComponent)
 		case *HerbivorousSystem:
-			sys.Add(herbivorous.BasicEntity,
+			sys.Add(id,
 				herbivorous.Component_SpaceComponent,
 				herbivorous.Target,
 				herbivorous.Component_HealthComponent,
 				herbivorous.Component_SpeedComponent)
 		case *NetworkSystem:
-			sys.Add(herbivorous.BasicEntity, []*erutan.Component{
-				&erutan.Component{Type: &erutan.Component_Space{Space: herbivorous.Component_SpaceComponent}},
-				&erutan.Component{Type: &erutan.Component_Render{Render: herbivorous.Component_RenderComponent}},
-				&erutan.Component{Type: &erutan.Component_Health{Health: herbivorous.Component_HealthComponent}},
-				&erutan.Component{Type: &erutan.Component_Speed{Speed: herbivorous.Component_SpeedComponent}},
+			sys.Add(id, []*erutan.Component{
+				{Type: &erutan.Component_Space{Space: herbivorous.Component_SpaceComponent}},
+				{Type: &erutan.Component_Render{Render: herbivorous.Component_RenderComponent}},
+				{Type: &erutan.Component_Health{Health: herbivorous.Component_HealthComponent}},
+				{Type: &erutan.Component_Speed{Speed: herbivorous.Component_SpeedComponent}},
 			})
 		case *RenderSystem:
-			sys.Add(herbivorous.BasicEntity, herbivorous.Component_RenderComponent)
+			sys.Add(id, herbivorous.Component_RenderComponent)
 		}
 	}
 }

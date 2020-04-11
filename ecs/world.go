@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"github.com/The-Tensox/octree"
 	"reflect"
 	"sort"
 )
@@ -87,18 +88,9 @@ func (w *World) Update(dt float64) {
 	}
 }
 
-// RemoveEntity removes the entity across all systems.
-func (w *World) RemoveEntity(e BasicEntity) {
+// RemoveObject removes the object across all systems.
+func (w *World) RemoveObject(o octree.Object) {
 	for _, sys := range w.systems {
-		sys.Remove(e)
+		sys.Remove(o)
 	}
-}
-
-// GetSystems ... dirty or not?
-func (w *World) GetSystems(e BasicEntity) []System {
-	var s []System
-	for _, sys := range w.systems {
-		s = append(s, sys)
-	}
-	return s
 }

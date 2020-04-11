@@ -18,3 +18,9 @@ vendor/
 # SSL
 *.crt
 *.key
+
+# VScode
+.vscode
+
+# Idea
+.idea
