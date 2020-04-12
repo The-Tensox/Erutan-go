@@ -2,7 +2,9 @@ package game
 
 import (
 	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
+	"github.com/The-Tensox/protometry"
 )
 
 type renderObject struct {
@@ -12,6 +14,11 @@ type renderObject struct {
 
 type RenderSystem struct {
 	objects octree.Octree
+}
+
+func NewRenderSystem() *RenderSystem {
+	return &RenderSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
+		utils.Config.GroundSize*10))}
 }
 
 func (r *RenderSystem) Add(id uint64,
@@ -26,9 +33,10 @@ func (r *RenderSystem) Remove(object octree.Object) {
 }
 
 func (r *RenderSystem) Update(dt float64) {
-	/*
-		for _, entity := range r.entities {
-
-		}
-	*/
+	//o := r.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize))
+	//for i := range o {
+	//	if ro, ok := o[i].Data.(renderObject); ok && ro.Green > 10{
+	//		utils.DebugLogf("ground %v", ro.Id)
+	//	}
+	//}
 }

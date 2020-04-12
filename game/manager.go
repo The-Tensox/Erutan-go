@@ -18,6 +18,7 @@ var (
 )
 
 // Manager ...
+// TODO: later create settings / config for manager ?
 type Manager struct {
 	World ecs.World
 
@@ -55,6 +56,7 @@ func (m *Manager) Run() {
 	m.World.AddSystem(c)
 	m.World.AddSystem(h)
 	m.World.AddSystem(e)
+	m.World.AddSystem(NewRenderSystem())
 	m.World.AddSystem(NewNetworkSystem(utils.GetProtoTime()))
 
 	m.Watch.Add(h)
@@ -62,9 +64,9 @@ func (m *Manager) Run() {
 	m.Watch.Add(c)
 
 	gs := utils.Config.GroundSize - 1
-	//p := perlin.NewPerlin(1, 1, 5, 100)
-	//for x := 0.; x < utils.Config.GroundSize; x++ {
-	//	for y := 0.; y < utils.Config.GroundSize; y++ {
+	//p := perlin.NewPerlin(1, 10, 10, 100)
+	//for x := 0.; x < gs; x++ {
+	//	for y := 0.; y < gs; y++ {
 	//		noise := p.Noise2D(x/10, y/10)
 	//		//fmt.Printf("%0.0f\t%0.0f\t%0.4f\n", x, y, noise)
 	//		m.AddGround(protometry.NewVectorN(x, noise, y), 1)
@@ -72,12 +74,14 @@ func (m *Manager) Run() {
 	//	}
 	//}
 
-	//m.AddGround(protometry.NewVectorN(0, -gs / 2, 0), gs / 4)
-	/*
-		for i := 0; i < 10; i++ {
-			m.AddGround(protometry.RandomSpherePoint(&protometry.VectorN{X: 0, Y: 0, Z: 0}, 10))
+	//m.AddGround(protometry.NewVectorN(0, -gs/2, 0), gs / 4)
+
+	for x := 0.; x < gs; x++ {
+		for z := 0.; z < gs; z++ {
+			m.AddGround(protometry.NewVectorN(x, -10, z), 1)
 		}
-	*/
+	}
+
 	// Debug thing, wait client
 	/*
 		nbClients := 0
@@ -89,21 +93,20 @@ func (m *Manager) Run() {
 		}
 	*/
 	for i := 0; i < 5; i++ {
-		p := protometry.RandomCirclePoint(*protometry.NewVectorN(0, 0), gs / 4)
+		p := protometry.RandomCirclePoint(*protometry.NewVectorN(gs/4, gs/4), gs/8)
 		m.AddHerb(&p)
 	}
 
 	for i := 0; i < 5; i++ {
-		p := protometry.RandomCirclePoint(*protometry.NewVectorN(0, 0), gs / 4)
+		p := protometry.RandomCirclePoint(*protometry.NewVectorN(gs/4, gs/4), gs/8)
 		m.AddHerbivorous(&p, protometry.NewVectorN(1, 1, 1), -1)
 	}
 
 	// Main loop
 	lastUpdateTime := utils.GetProtoTime()
 	for {
-		dt := utils.GetProtoTime()-lastUpdateTime/ math.Pow(10, 9)
+		dt := float64(utils.GetProtoTime() - lastUpdateTime)/math.Pow(10, 9)
 		if dt > 0.0001 { // 50fps
-
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
 			m.World.Update(dt * utils.Config.TimeScale)
 			lastUpdateTime = utils.GetProtoTime()
@@ -174,6 +177,7 @@ func (m *Manager) AddGround(position *protometry.VectorN, sideLength float64) {
 		switch sys := system.(type) {
 		case *CollisionSystem:
 			sys.Add(id,
+				sideLength / 2,
 				ground.Component_SpaceComponent,
 				ground.Component_BehaviourTypeComponent,
 				ground.Component_PhysicsComponent)
@@ -213,6 +217,7 @@ func (m *Manager) AddHerb(position *protometry.VectorN) {
 		switch sys := system.(type) {
 		case *CollisionSystem:
 			sys.Add(id,
+				0.5,
 				herb.Component_SpaceComponent,
 				herb.Component_BehaviourTypeComponent,
 				herb.Component_PhysicsComponent)
@@ -264,6 +269,7 @@ func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry
 		switch sys := system.(type) {
 		case *CollisionSystem:
 			sys.Add(id,
+				0.5,
 				herbivorous.Component_SpaceComponent,
 				herbivorous.Component_BehaviourTypeComponent,
 				herbivorous.Component_PhysicsComponent)

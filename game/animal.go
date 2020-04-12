@@ -6,6 +6,7 @@ import (
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 	"github.com/golang/protobuf/ptypes"
+	"time"
 )
 
 // AddLife set health component life, clip it and return true if entity is dead
@@ -26,7 +27,7 @@ func AddLife(id uint64, o octree.Object, h *erutan.Component_HealthComponent, va
 				},
 			},
 		}
-		ManagerInstance.World.RemoveObject(o) // TODO: collisionsystem -> remove by position faster ?
+		ManagerInstance.World.RemoveObject(o)
 		return true
 	}
 	return false
@@ -57,7 +58,7 @@ type HerbivorousSystem struct {
 
 func NewHerbivorousSystem() *HerbivorousSystem {
 	return &HerbivorousSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize))}
+		utils.Config.GroundSize*10))}
 }
 
 func (h *HerbivorousSystem) Add(id uint64,
@@ -68,7 +69,9 @@ func (h *HerbivorousSystem) Add(id uint64,
 	ho := herbivorousObject{id, space, target,
 		health, speed}
 	o := octree.NewObjectCube(ho, ho.Position.Get(0), ho.Position.Get(1), ho.Position.Get(2), 1)
-	h.objects.Insert(*o)
+	if !h.objects.Insert(*o) {
+		utils.ServerLogf(time.Now(), "Failed to insert %v", o.ToString())
+	}
 }
 
 // Remove removes the Object from the System. This is what most Remove methods will look like
@@ -81,13 +84,13 @@ func (h *HerbivorousSystem) Update(dt float64) {
 	for indexObject, object := range objects {
 		if ho, ok := object.Data.(herbivorousObject); ok {
 
-			volume := ho.Component_SpaceComponent.Scale.Get(0) * ho.Component_SpaceComponent.Scale.Get(1) * ho.Component_SpaceComponent.Scale.Get(2)
-
-			// Every animal lose life proportional to deltatime, volume and speed
-			// So bigger and faster animals need more food
-			if AddLife(ho.Id, object, ho.Component_HealthComponent, -3*dt*volume*(ho.MoveSpeed/100)) {
-				// Dead
-			}
+			//volume := ho.Component_SpaceComponent.Scale.Get(0) * ho.Component_SpaceComponent.Scale.Get(1) * ho.Component_SpaceComponent.Scale.Get(2)
+			//
+			//// Every animal lose life proportional to deltatime, volume and speed
+			//// So bigger and faster animals need more food
+			//if AddLife(ho.Id, object, ho.Component_HealthComponent, -3*dt*volume*(ho.MoveSpeed/100)) {
+			//	// Dead
+			//}
 
 			// If I don't have a target, let's find one
 			if ho.Target == nil {
@@ -98,7 +101,6 @@ func (h *HerbivorousSystem) Update(dt float64) {
 			}
 
 			distance := ho.Position.Distance(*ho.Target.Position)
-
 			// TODO: CHECK AGAIN THIS OPERATION ...
 			newPos := ho.Position.Plus(*ho.Target.Position.Minus(*ho.Position).Scale(distance).Div(dt * ho.MoveSpeed))
 			newSc := *ho.Component_SpaceComponent

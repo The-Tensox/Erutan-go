@@ -38,7 +38,7 @@ func (n *NetworkSystem) Add(id uint64, components []*erutan.Component) {
 		if ok := n.objects.Insert(*octree.NewObjectCube(no, position.Get(0),
 			position.Get(1),
 			position.Get(2),
-			1)); !ok {
+			0.5)); !ok {
 		 	utils.DebugLogf("Failed to insert %v", no.components)
 		 }
 	} else {
@@ -54,7 +54,6 @@ func (n *NetworkSystem) Add(id uint64, components []*erutan.Component) {
 			},
 		},
 	}
-
 }
 
 // Remove removes the Entity from the System. This is what most Remove methods will look like
@@ -66,8 +65,10 @@ func (n *NetworkSystem) Update(dt float64) {
 	// TODO: should probably be better to update only when there is a change ... (observer ..)
 	// FOR NOW BRUTE FORCE DUMB ALGO
 
-	objects := n.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize))
-	if (utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.0002*float64(len(objects)) {
+	objects := n.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize*10))
+	//utils.DebugLogf("len %v", len(objects))
+
+	if (utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.0001/**float64(len(objects))*/ {
 		for _, entity := range objects {
 
 			if no, ok := entity.Data.(networkObject); ok {
@@ -88,7 +89,7 @@ func (n *NetworkSystem) Update(dt float64) {
 }
 
 func (n *NetworkSystem) SyncNewClient(tkn string) {
-	objects := n.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize))
+	objects := n.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize*10))
 	for _, entity := range objects {
 		if no, ok := entity.Data.(networkObject); ok {
 			c, _ := ManagerInstance.ClientStreams.Load(tkn)

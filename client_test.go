@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"io"
-	"log"
 	"testing"
 	"time"
 )
@@ -15,6 +14,7 @@ import (
 func setFlags() {
 	utils.Config.DebugMode = true
 	utils.Config.Host = "0.0.0.0:50051"
+	utils.Config.GroundSize = 20
 }
 
 //func google() (*grpc.ClientConn, error) {
@@ -34,7 +34,6 @@ func ssl() (*grpc.ClientConn, error) {
 func TestClient(t *testing.T) {
 	setFlags()
 	go RunMain()
-	time.Sleep(10 * time.Second)     // sleep for 10 seconds
 	tls := true
 	crtFile := "server1.crt"
 	serverAddr := "127.0.0.1:50051"
@@ -42,7 +41,7 @@ func TestClient(t *testing.T) {
 	if tls {
 		creds, err := credentials.NewClientTLSFromFile(crtFile, "")
 		if err != nil {
-			log.Fatalf("Failed to create TLS credentials %v", err)
+			t.Fatalf("Failed to create TLS credentials %v", err)
 		}
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else {
@@ -52,7 +51,7 @@ func TestClient(t *testing.T) {
 	opts = append(opts, grpc.WithBlock())
 	conn, err := grpc.Dial(serverAddr, opts...)
 	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
+		t.Fatalf("fail to dial: %v", err)
 	}
 	defer conn.Close()
 	client := erutan.NewErutanClient(conn)
@@ -60,18 +59,24 @@ func TestClient(t *testing.T) {
 	defer cancel()
 	c, err := client.Stream(ctx)
 	if err != nil {
-		log.Fatalf("Couldn't open stream : %v", err)
+		t.Fatalf("Couldn't open stream : %v", err)
 	}
 
+	go func() {
+		time.Sleep(10*time.Second)
+		t.Fatalf("Didn't receive any packet")
+	}()
+
 	for {
-		d, err := c.Recv()
+		_, err := c.Recv()
 		if err == io.EOF {
 			// read done.
 			return
 		}
 		if err != nil {
-			log.Fatalf("Failed to receive : %v", err)
+			t.Fatalf("Failed to receive : %v", err)
 		}
-		log.Printf("recv %v", d)
+		// Successfully received a packet
+		t.SkipNow()
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
+	"time"
 )
 
 type AnyObject struct {
@@ -26,14 +27,16 @@ type EatableSystem struct {
 
 func NewEatableSystem() *EatableSystem {
 	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize))}
+		utils.Config.GroundSize*10))}
 }
 
 func (e *EatableSystem) Add(id uint64,
 	space *erutan.Component_SpaceComponent) {
 	eo := eatableObject{id, space}
 	o := octree.NewObjectCube(eo, eo.Position.Get(0), eo.Position.Get(1), eo.Position.Get(2), 1)
-	e.objects.Insert(*o)
+	if !e.objects.Insert(*o) {
+		utils.ServerLogf(time.Now(), "Failed to insert %v", o.ToString())
+	}
 }
 
 // Remove removes the Object from the System. This is what most Remove methods will look like
@@ -42,10 +45,6 @@ func (e *EatableSystem) Remove(o octree.Object) {
 }
 
 func (e *EatableSystem) Update(dt float64) {
-	/*
-		for _, entity := range e.entities {
-		}
-	*/
 }
 
 func (e *EatableSystem) NotifyCallback(event utils.Event) {
@@ -58,21 +57,18 @@ func (e *EatableSystem) NotifyCallback(event utils.Event) {
 			b.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
 			newSc := b.Component_SpaceComponent
-			p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize/2,
-				utils.Config.GroundSize/2),
-				utils.Config.GroundSize/2)
+			p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize, utils.Config.GroundSize),
+				utils.Config.GroundSize)
 			newSc.Position = &p
 			ManagerInstance.Watch.Notify(utils.Event{Value: ObjectPhysicsUpdated{object: u.b, newSc: *newSc, dt: u.dt}})
-
 		}
 
 		if b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
 			newSc := a.Component_SpaceComponent
-			p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize/2,
-				utils.Config.GroundSize/2),
-				utils.Config.GroundSize/2)
+			p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize, utils.Config.GroundSize),
+				utils.Config.GroundSize)
 			newSc.Position = &p
 			ManagerInstance.Watch.Notify(utils.Event{Value: ObjectPhysicsUpdated{object: u.a, newSc: *newSc, dt: u.dt}})
 		}
