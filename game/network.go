@@ -1,85 +1,234 @@
 package game
 
 import (
+	"github.com/The-Tensox/octree"
+	"github.com/The-Tensox/protometry"
 	"math"
 
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
 	"github.com/golang/protobuf/ptypes"
-	erutan "github.com/user/erutan/protos/realtime"
-	"github.com/user/erutan/utils"
-
-	"github.com/user/erutan/ecs"
 )
 
-type networkEntity struct {
-	*ecs.BasicEntity
+type networkObject struct {
+	Id         uint64
+	// clientsAction will apply a specific action for every action related to this object
+	// for example filtering out an object if too far away ...
+	clientsAction map[string]networkAction
 	components []*erutan.Component
 }
 
 type NetworkSystem struct {
-	entities       []networkEntity
+	objects        octree.Octree
 	lastUpdateTime float64
 }
 
-func (n *NetworkSystem) Add(basic *ecs.BasicEntity, components []*erutan.Component) {
-	n.entities = append(n.entities, networkEntity{BasicEntity: basic, components: components})
+type networkAction int
 
+const (
+	ignore networkAction = iota
+	create
+	update
+	destroy
+)
+
+func NewNetworkSystem(lastUpdateTime float64) *NetworkSystem {
+	return &NetworkSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
+		utils.Config.GroundSize*1000)),
+		lastUpdateTime: lastUpdateTime}
+}
+
+func (n *NetworkSystem) Add(id uint64,
+	size float64,
+	components []*erutan.Component) {
+	no := networkObject{Id: id, clientsAction: make(map[string]networkAction), components: components}
+	ManagerInstance.ClientsSettings.Range(func(key, value interface{}) bool {
+		no.clientsAction[key.(string)] = update
+		return true
+	})
+	var position *protometry.VectorN
+	for _, c := range components {
+		if s := c.GetSpace(); s != nil {
+			position = s.Position
+		}
+	}
+	if position != nil {
+		if ok := n.objects.Insert(*octree.NewObjectCube(no,
+			position.Get(0),
+			position.Get(1),
+			position.Get(2),
+			size)); !ok {
+			utils.DebugLogf("Failed to insert, tree size: %v, object: %v", n.objects.GetSize(), no.components)
+			return
+		}
+	} else { // Collision-less objects ?
+		n.objects.Insert(*octree.NewObjectCube(no, 0, 0, 0, 1))
+	}
 	// Broadcast on network the add
 	ManagerInstance.Broadcast <- erutan.Packet{
 		Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 		Type: &erutan.Packet_CreateEntity{
 			CreateEntity: &erutan.Packet_CreateEntityPacket{
-				EntityId:   n.entities[len(n.entities)-1].ID(),
-				Components: n.entities[len(n.entities)-1].components,
+				EntityId:   id,
+				Components: components,
 			},
 		},
 	}
-
 }
 
 // Remove removes the Entity from the System. This is what most Remove methods will look like
-func (n *NetworkSystem) Remove(basic ecs.BasicEntity) {
-	var delete int = -1
-	for index, entity := range n.entities {
-		if entity.ID() == basic.ID() {
-			delete = index
-			break
+func (n *NetworkSystem) Remove(object octree.Object) {
+	// Notify every clients of the removal of this object
+	if no, ok := object.Data.(networkObject); ok {
+		ManagerInstance.Broadcast <- erutan.Packet{
+			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+			Type: &erutan.Packet_DestroyEntity{
+				DestroyEntity: &erutan.Packet_DestroyEntityPacket{
+					EntityId: no.Id,
+				},
+			},
 		}
 	}
-	if delete >= 0 {
-		n.entities = append(n.entities[:delete], n.entities[delete+1:]...)
-	}
+
+	n.objects.Remove(object)
 }
 
+// NetworkSystem Update function role is to synchronise what we want to be synchronised with clients
+// Thus only entities that have been added to this system will be synchronised
+// Plus it should take into account some client-specific preferences and filter in/out some entities
+// For example client X might want to be synchronised only on the area in: sphere centered 12;0;-100 of radius 100
+// Or client Y might want to see the Octree data structure ...
 func (n *NetworkSystem) Update(dt float64) {
-	if (utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.0002*float64(len(n.entities)) {
-		for _, entity := range n.entities {
-			// Broadcast on network the update
-			ManagerInstance.Broadcast <- erutan.Packet{
-				Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-				Type: &erutan.Packet_UpdateEntity{
-					UpdateEntity: &erutan.Packet_UpdateEntityPacket{
-						EntityId:   entity.ID(),
-						Components: entity.components,
-					},
-				},
+	// TODO: should it be better to update only when there is a change ... (observer ..) ?
+	// Limit synchronisation to specific fps to avoid burning your computer
+	if (utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.0001 /**float64(len(objects))*/ { // times len obj = more obj = less net updates
+		objects := n.objects.GetObjects()
+		for _, entity := range objects {
+			if no, ok := entity.Data.(networkObject); ok {
+				for keyClient, clientValue := range no.clientsAction {
+					if streamInterface, hasStream := ManagerInstance.ClientsOut.Load(keyClient); hasStream {
+						// Get channel
+						if channel, isChannel := streamInterface.(chan erutan.Packet); isChannel {
+							switch clientValue {
+							case ignore: // Ignore is continuous
+								//utils.DebugLogf("Ignore")
+
+							case create: // Create is discrete, only do it once then update
+								//utils.DebugLogf("Create")
+								channel <- erutan.Packet{
+									Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+									Type: &erutan.Packet_CreateEntity{
+										CreateEntity: &erutan.Packet_CreateEntityPacket{
+											EntityId:   no.Id,
+											Components: no.components,
+										},
+									},
+								}
+								no.clientsAction[keyClient] = update
+							case update: // Update is continuous too, don't change it
+								//utils.DebugLogf("Update")
+
+								channel <- erutan.Packet{
+									Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+									Type: &erutan.Packet_UpdateEntity{
+										UpdateEntity: &erutan.Packet_UpdateEntityPacket{
+											EntityId:   no.Id,
+											Components: no.components,
+										},
+									},
+								}
+							case destroy: // Destroy is discrete, only do it once then ignore
+								//utils.DebugLogf("Destroy")
+
+								channel <- erutan.Packet{
+									Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
+									Type: &erutan.Packet_DestroyEntity{
+										DestroyEntity: &erutan.Packet_DestroyEntityPacket{
+											EntityId:   no.Id,
+										},
+									},
+								}
+								no.clientsAction[keyClient] = ignore
+							}
+						}
+					}
+				}
 			}
 		}
 		n.lastUpdateTime = utils.GetProtoTime()
 	}
 }
 
-func (n *NetworkSystem) SyncNewClient(tkn string) {
-	for _, entity := range n.entities {
-		c, _ := ManagerInstance.ClientStreams.Load(tkn)
-		if res, ok := c.(chan erutan.Packet); ok {
-			res <- erutan.Packet{
-				Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-				Type: &erutan.Packet_CreateEntity{
-					CreateEntity: &erutan.Packet_CreateEntityPacket{
-						EntityId:   entity.ID(),
-						Components: entity.components,
-					},
-				},
+func (n *NetworkSystem) Handle(event utils.Event) {
+	switch settings := event.Value.(type) {
+	case utils.OnClientConnected:
+		objects := n.objects.GetObjects()
+		var debugAction networkAction
+		// Get the network action
+		for _, paramInterface := range settings.Settings.UpdateParameters.Parameters {
+			switch p := paramInterface.Type.(type) {
+			case *erutan.Packet_UpdateParametersPacket_Parameter_Debug:
+				// So the client asked for debug mode just now
+				if p.Debug { // Debug objects need to be created
+					debugAction = create
+				} else { // Otherwise he turned it off, debug objects need to be destroyed
+					debugAction = destroy
+				}
+				utils.DebugLogf("Client [%s] turned mode debug to %v", settings.ClientToken, p.Debug)
+			}
+		}
+
+		// Now tag every object with a network action
+		for i := range objects {
+			// Cast to network object
+			if no, isNo := objects[i].Data.(networkObject); isNo {
+				var netBehaviour *erutan.Component_NetworkBehaviourComponent
+				for _, c := range no.components {
+					netBehaviour = c.GetNetworkBehaviour()
+				}
+				if netBehaviour != nil && netBehaviour.Tag == erutan.Component_NetworkBehaviourComponent_DEBUG {
+					no.clientsAction[settings.ClientToken] = debugAction
+				}
+				if netBehaviour != nil && netBehaviour.Tag == erutan.Component_NetworkBehaviourComponent_ALL {
+					// Object isn't tagged with debug network behaviour, just update
+					no.clientsAction[settings.ClientToken] = create
+				}
+			}
+		}
+
+	// Depending on settings, network system will "tag" every objects with an action to do for each clients
+	case utils.ClientSettingsUpdated:
+		objects := n.objects.GetObjects()
+		var debugAction networkAction
+		// Get the network action
+		for _, paramInterface := range settings.Settings.UpdateParameters.Parameters {
+			switch p := paramInterface.Type.(type) {
+			case *erutan.Packet_UpdateParametersPacket_Parameter_Debug:
+				// So the client asked for debug mode just now
+				if p.Debug { // Debug objects need to be created
+					debugAction = create
+				} else { // Otherwise he turned it off, debug objects need to be destroyed
+					debugAction = destroy
+				}
+				utils.DebugLogf("Client [%s] turned mode debug to %b", settings.ClientToken, p.Debug)
+			}
+		}
+
+		// Now tag every object with a network action
+		for i := range objects {
+			// Cast to network object
+			if no, isNo := objects[i].Data.(networkObject); isNo {
+				var netBehaviour *erutan.Component_NetworkBehaviourComponent
+				for _, c := range no.components {
+					netBehaviour = c.GetNetworkBehaviour()
+				}
+				if netBehaviour != nil && netBehaviour.Tag == erutan.Component_NetworkBehaviourComponent_DEBUG {
+					no.clientsAction[settings.ClientToken] = debugAction
+				}
+				if netBehaviour != nil && netBehaviour.Tag == erutan.Component_NetworkBehaviourComponent_ALL {
+					// Object isn't tagged with debug network behaviour, just update
+					no.clientsAction[settings.ClientToken] = update
+				}
 			}
 		}
 	}

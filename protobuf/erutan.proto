@@ -2,20 +2,16 @@ syntax = "proto3";
 
 package erutan;
 
-option java_multiple_files = true;
-option java_package = "com.erutan";
-option java_outer_classname = "Erutan";
-option csharp_namespace = "Erutan.Scripts.Protos";
 import "google/protobuf/timestamp.proto";
+import "protobuf/protometry/vectorn.proto";
+import "protobuf/protometry/quaternionn.proto";
+option go_package = "github.com/The-Tensox/erutan";
+option csharp_namespace = "Erutan";
 
 /*
     The Erutan service.
-    Allows you to actually play the game.
 */
 service Erutan {
-    /*
-    Blabla
-    */
     rpc Stream(stream Packet) returns (stream Packet) {}
 }
 
@@ -23,72 +19,30 @@ message Metadata {
     google.protobuf.Timestamp timestamp = 1;
 }
 
-
-message NetVector3 {
-    double x = 1;
-    double y = 2;
-    double z = 3;
-}
-
-message NetVector2 {
-    double x = 1;
-    double y = 2;
-}
-
-message NetQuaternion {
-    double x = 1;
-    double y = 2;
-    double z = 3;
-    double w = 4;
-}
-
-message Line {
-    NetVector2 p1 = 1;
-    NetVector2 p2 = 2;
-}
-
-// Shape is a ...
-message Shape {
-	repeated NetVector3 vertices = 2;
+// Mesh is used for rendering meshes
+message Mesh {
+	repeated protometry.VectorN vertices = 2;
 	repeated int32 tris = 3;
-	repeated NetVector3 normals = 4;
-	repeated NetVector2 uvs = 5;
+	repeated protometry.VectorN normals = 4;
+	repeated protometry.VectorN uvs = 5;
 }
 
-message Collider {
-    // TODO: Box, Sphere, Capsule ..., atm all are Box collider
-}
-
-// Ellipse represnets an ellpitical shape.
-// Cx and Cy are the x and y coordinates of the center of the ellipse.
-// Rx and Ry are the x and y radius of the ellipse.
-message Ellipse {
-    double cx = 1; 
-    double cy = 2;
-    double rx = 3; 
-    double ry = 4;
-}
-
-// Data-oriented design like
+// Data-oriented design : Entity Component System (ECS)
 message Component {
     oneof type {
         SpaceComponent space = 1;
-        SpaceTimeComponent space_time = 2;
-        HealthComponent health = 3;
-        SpeedComponent speed = 4;
-        RenderComponent render = 5;
-        BehaviourTypeComponent behaviour_type = 6;
-        PhysicsComponent physics = 7;
+        HealthComponent health = 2;
+        SpeedComponent speed = 3;
+        RenderComponent render = 4;
+        BehaviourTypeComponent behaviour_type = 5;
+        PhysicsComponent physics = 6;
+        NetworkBehaviourComponent network_behaviour = 7;
     }
     message SpaceComponent {
-        NetVector3 position = 1;
-        NetQuaternion rotation = 2;
-        NetVector3 scale = 3;
-        Shape shape = 4;
-    }
-    message SpaceTimeComponent {
-        google.protobuf.Timestamp timestamp = 1;
-        SpaceComponent space = 2;
+        protometry.VectorN position = 1;
+        protometry.QuaternionN rotation = 2;
+        protometry.VectorN scale = 3;
+        Mesh mesh = 4; // TODO: maybe should be moved to render
     }
     message HealthComponent {
         double life = 1;
@@ -97,30 +51,39 @@ message Component {
         double move_speed = 1;
     }
     message TargetComponent {
-        NetVector3 target = 1;
+        protometry.VectorN target = 1;
     }
     message RenderComponent {
         float red = 1;
         float green = 2;
         float blue = 3;
+        float alpha = 4;
     }
-    // Acts as a sort of tag, see if we could do something cleaner
+    // Acts as a sort of tag
     message BehaviourTypeComponent {
-        enum BehaviourType {
+        Tag tag = 1;
+        enum Tag {
             ANY = 0;
             ANIMAL = 1;
             VEGETATION = 2;
         }
-        BehaviourType behaviour_type = 1;
     }
     message PhysicsComponent {
         bool use_gravity = 1;
+    }
+    // Some information about how this object should be synchronized
+    message NetworkBehaviourComponent {
+        Tag tag = 1;
+        enum Tag { // Some kind of filter, should an object be considered debug thing or normal or hack mode: show only clients :p
+            ALL = 0;
+            DEBUG = 1;
+        }
     }
 }
 
 message Packet {
     Metadata metadata = 1;
-
+    // TODO: entity -> object ? or maybe not
     oneof type {
         // General physical entitys
         CreateEntityPacket create_entity = 2;
@@ -148,12 +111,12 @@ message Packet {
 
     message UpdatePositionPacket {
         uint64 entity_id = 1;
-        NetVector3 position = 2;
+        protometry.VectorN position = 2;
     }
 
     message UpdateRotationPacket {
         uint64 entity_id = 1;
-        NetQuaternion rotation = 2;
+        protometry.QuaternionN rotation = 2;
     }
 
     message DestroyEntityPacket {
@@ -170,6 +133,9 @@ message Packet {
         message Parameter {
             oneof type {
                 double time_scale = 1;
+                bool debug = 2; // Whether or not synchronizing debug stuff
+                // TODO: client area that he wants to be synchronized on, culling-like (obvsly to improve client-side perf)
+                // TODO: maybe should move protometry.Box into protobuf then
             }
         }
     }

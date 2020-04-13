@@ -1,5 +1,7 @@
 package ecs
 
+import "github.com/The-Tensox/octree"
+
 // A System implements logic for processing entities possessing components of
 // the same aspects as the system. A System should iterate over its Entities on
 // `Update`, in any way suitable for the current implementation.
@@ -14,7 +16,7 @@ type System interface {
 	Update(dt float64)
 
 	// Remove removes the given entity from the system.
-	Remove(e BasicEntity)
+	Remove(o octree.Object)
 }
 
 // SystemAddByInterfacer is a system that also implements the AddByInterface method

@@ -7,12 +7,16 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"strings"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	erutan "github.com/user/erutan/protos/realtime"
 	"golang.org/x/net/context"
 )
 
@@ -42,7 +46,22 @@ func DebugLogf(format string, args ...interface{}) {
 	if !Config.DebugMode {
 		return
 	}
-	log.Printf("[%s] <<Debug>>: "+format, append([]interface{}{time.Now().Format(timeFormat)}, args...)...)
+	// Add more information  about the log, such as file name, function ...
+	pc := make([]uintptr, 10)  // at least 1 entry needed
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	file, line := f.FileLine(pc[0])
+	if s := strings.Split(file, "/"); len(s)>0 {
+		file = s[len(s)-1] // Only keep the file name, drop the path
+	}
+	var functionName string
+	if s := strings.Split(f.Name(), "/"); len(s)>0 {
+		functionName = s[len(s)-1] // Only keep the package.(class).function
+	}
+	file = fmt.Sprintf("%s - %s - L%d", functionName, file, line)
+	formattedString := append([]interface{}{time.Now().Format(timeFormat)}, []interface{}{file}...)
+	formattedString = append(formattedString, args...)
+	log.Printf("[%s] - [%s] <<Debug>>: "+format, formattedString...)
 }
 
 func SignalContext(ctx context.Context) context.Context {
@@ -77,16 +96,6 @@ func RandFloats(min, max float64) float64 {
 	return min + rand.Float64()*(max-min)
 }
 
-func RandomPositionInsideCircle(center *erutan.NetVector2, radius float64) *erutan.NetVector3 {
-	return &erutan.NetVector3{X: RandFloats(-radius+center.X, radius+center.X), Y: 10, Z: RandFloats(-radius+center.Y, radius+center.Y)}
-}
-
-func RandomPositionInsideSphere(center *erutan.NetVector3, radius float64) *erutan.NetVector3 {
-	return &erutan.NetVector3{X: RandFloats(-radius+center.X, radius+center.X),
-		Y: RandFloats(-radius+center.Y, radius+center.Y),
-		Z: RandFloats(-radius+center.Y, radius+center.Y)}
-}
-
 func GetProtoTime() float64 {
 	return float64(ptypes.TimestampNow().Seconds)*math.Pow(10, 9) + float64(ptypes.TimestampNow().Nanos)
 }
@@ -94,5 +103,14 @@ func GetProtoTime() float64 {
 func DoEvery(d time.Duration, f func(time.Time)) {
 	for x := range time.Tick(d) {
 		f(x)
+	}
+}
+
+// Equals fails the test if exp is not equal to act.
+func Equals(tb testing.TB, exp, act interface{}) {
+	if !reflect.DeepEqual(exp, act) {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
+		tb.FailNow()
 	}
 }

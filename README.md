@@ -1,17 +1,23 @@
 
 # Erutan-go
 
-Simulating darwinian evolution, fully networked allowing several clients to have a 3D vizualisation.
+Trying to simulate evolution, synchronized over gRPC to clients that render a 3D visualisation.
 
 To be used with [the Unity client](https://github.com/The-Tensox/Erutan-unity)
 
 # Installation
 
 ```bash
+# Unity project path
 export UNITY_PROJECT_PATH="/home/louis/Documents/unity/Erutan"
 go get github.com/The-Tensox/Erutan-go
-protoc -I protos/realtime --go_out=plugins=grpc:protos/realtime protos/realtime/realtime.proto
-cp protos/realtime/realtime.proto $UNITY_PROJECT_PATH/Assets/Protos/Realtime
+cd $GOPATH/src/github.com/The-Tensox/Erutan-go
+protoc --go_out=plugins=grpc:. protobuf/protometry/*.proto --go_opt=paths=source_relative
+protoc --go_out=plugins=grpc:. protobuf/*.proto --go_opt=paths=source_relative
+
+# If you updated the .proto, copy to unity project
+cp protobuf/*.proto $UNITY_PROJECT_PATH/Assets/protobuf
+cp protobuf/protometry/*.proto $UNITY_PROJECT_PATH/Assets/protobuf/protometry
 ```
 
 # SSL/TLS configuration
@@ -40,7 +46,7 @@ go ruin main.go
 # Tests
 
 ```bash
-go test ~/go/src/github.com/user/erutan/utils/ -v
+go test ~/go/src/github.com/The-Tensox/erutan/utils/ -v
 ```
 
 # Debug
@@ -49,12 +55,25 @@ go test ~/go/src/github.com/user/erutan/utils/ -v
 export GRPC_VERBOSITY=INFO
 ```
 
+# Entities
+
+# Components
+
+Composed of physical data (position, rotation, scale, shape, collision ...), logic + others ...
+
+# Systems
+
+- Network: for every entity, simply synchronize every added components over network.
+- Collision: handle physics (what to do when a movement has been requested, how to handle collisions, gravity ...)
+- Herbivorous, Eatable, Vegetation (will probably change name over time): some temporary hard-coded logic
+- Render: how it should be rendered on clients
+
 # Roadmap
 
+- [ ] Better visual debugging (octree & others)
 - [ ] 2D -> 3D (map procedurally generated for example)
 - [ ] More (useful) characteristics (no point in adding characteristics that doesn't help survival)
 - [ ] Environment-based evolution (stay near lakes, need more aquatic food, swim better idk, stay near desert, more resistant to sun ...)
 - [ ] Other languages libraries (Python, JS ...) allowing either other front-ends either building bots, client-side heavy computation stuff ...
-- [ ] Scalable (kd-tree, centralized state: redis ...)
-- [ ] Deployable (GCP, custom, docker, kubernetes)
-- [ ] A lot more
+- [x] Octree
+- [ ] Deployable (docker, kubernetes)

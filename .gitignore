@@ -13,8 +13,14 @@ bin
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
 
 # SSL
 *.crt
 *.key
+
+# VScode
+.vscode
+
+# Idea
+.idea

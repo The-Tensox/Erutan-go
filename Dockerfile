@@ -1,4 +1,4 @@
-FROM golang:1.9-alpine as builder
+FROM golang:1.14-alpine as builder
 RUN apk --no-cache add git
 
 RUN go get -d \
@@ -7,7 +7,7 @@ RUN go get -d \
     google.golang.org/grpc \
     github.com/golang/protobuf/ptypes
 
-WORKDIR /go/src/github.com/user/erutan
+WORKDIR /go/src/github.com/The-Tensox/erutan
 COPY . .
 
 RUN go build -o app .
@@ -18,6 +18,6 @@ FROM alpine:latest
 EXPOSE 6262/tcp
 
 WORKDIR /root/
-COPY --from=builder /go/src/github.com/user/erutan/app .
+COPY --from=builder /go/src/github.com/The-Tensox/erutan/app .
 
 ENTRYPOINT ["./app"]

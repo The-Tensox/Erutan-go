@@ -8,16 +8,6 @@ var (
 	idInc uint64
 )
 
-// A BasicEntity is simply a set of components with a unique ID attached to it,
-// nothing more. It belongs to any amount of Systems, and has a number of
-// Components
-type BasicEntity struct {
-	// Entity ID.
-	id       uint64
-	parent   *BasicEntity
-	children []BasicEntity
-}
-
 // Identifier is an interface for anything that implements the basic ID() uint64,
 // as the BasicEntity does.  It is useful as more specific interface for an
 // entity registry than just the interface{} interface
@@ -29,56 +19,8 @@ type Identifier interface {
 // store entites in slices, and use the P=n*log n lookup for them
 type IdentifierSlice []Identifier
 
-// NewBasic creates a new Entity with a new unique identifier. It is safe for
-// concurrent use.
-func NewBasic() BasicEntity {
-	return BasicEntity{id: atomic.AddUint64(&idInc, 1)}
-}
-
-// NewBasics creates an amount of new entities with a new unique identifiers. It
-// is safe for concurrent use, and performs better than NewBasic for large
-// numbers of entities.
-func NewBasics(amount int) []BasicEntity {
-	entities := make([]BasicEntity, amount)
-
-	lastID := atomic.AddUint64(&idInc, uint64(amount))
-	for i := 0; i < amount; i++ {
-		entities[i].id = lastID - uint64(amount) + uint64(i) + 1
-	}
-
-	return entities
-}
-
-// ID returns the unique identifier of the entity.
-func (e BasicEntity) ID() uint64 {
-	return e.id
-}
-
-// GetBasicEntity returns a Pointer to the BasicEntity itself
-// By having this method, All Entities containing a BasicEntity now automatically have a GetBasicEntity Method
-// This allows system.Add functions to recieve a single interface
-// EG:
-// s.AddByInterface(a interface{GetBasicEntity()*BasicEntity, GetSpaceComponent()*SpaceComponent){
-// s.Add(a.GetBasicEntity(),a.GetSpaceComponent())
-//}
-func (e *BasicEntity) GetBasicEntity() *BasicEntity {
-	return e
-}
-
-// AppendChild appends a child to the BasicEntity
-func (e *BasicEntity) AppendChild(child *BasicEntity) {
-	child.parent = e
-	e.children = append(e.children, *child)
-}
-
-// Children returns the children of the BasicEntity
-func (e *BasicEntity) Children() []BasicEntity {
-	return e.children
-}
-
-// Parent returns the parent of the BasicEntity
-func (e *BasicEntity) Parent() *BasicEntity {
-	return e.parent
+func NewId() uint64 {
+	return atomic.AddUint64(&idInc, 1)
 }
 
 // Len returns the length of the underlying slice

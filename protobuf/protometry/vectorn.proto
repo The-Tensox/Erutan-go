@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package protometry;
+option go_package = "github.com/The-Tensox/protometry";
+option csharp_namespace = "Protometry";
+
+
+message VectorN {
+    repeated double dimensions = 1;
+}

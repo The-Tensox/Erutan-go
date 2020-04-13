@@ -1,118 +1,126 @@
 package game
 
 import (
-	"math"
-
-	"github.com/user/erutan/ecs"
-	erutan "github.com/user/erutan/protos/realtime"
-	"github.com/user/erutan/utils"
-	"github.com/user/erutan/utils/octree"
-	"github.com/user/erutan/utils/vector"
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
+	"github.com/The-Tensox/octree"
+	"github.com/The-Tensox/protometry"
 )
 
-type collisionEntity struct {
-	*ecs.BasicEntity
+type collisionObject struct {
+	Id uint64
 	*erutan.Component_SpaceComponent
 	*erutan.Component_BehaviourTypeComponent
 	*erutan.Component_PhysicsComponent
 }
 
-// CollisionSystem is a system that detects collisions between entities, sends a message if collisions
-// are detected, and updates their SpaceComponent so entities cannot pass through Solids.
+// CollisionSystem is a system that handle collisions
 type CollisionSystem struct {
-	entities octree.Octree
+	objects octree.Octree
 }
 
-// New is the constructor of CollisionSystem
-func (c *CollisionSystem) New(w *ecs.World) {
-	c.entities = *octree.NewOctree(vector.GetBoxOfSize(erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize))
+func NewCollisionSystem() *CollisionSystem {
+	return &CollisionSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
+		utils.Config.GroundSize*1000))}
 }
 
 // Add adds an entity to the CollisionSystem. To be added, the entity has to have a basic and space component.
-func (c *CollisionSystem) Add(basic *ecs.BasicEntity,
+func (c *CollisionSystem) Add(id uint64,
+	size float64,
 	space *erutan.Component_SpaceComponent,
 	behaviourType *erutan.Component_BehaviourTypeComponent,
 	physics *erutan.Component_PhysicsComponent) {
-	e := collisionEntity{basic, space, behaviourType, physics}
-	c.entities.Add(e, *e.Position)
-}
-
-// Remove removes an entity from the CollisionSystem.
-func (c *CollisionSystem) Remove(basic ecs.BasicEntity) {
-	// TODO: take advantage of tree DS to do O(logn) removal instead of this O(n)+?
-	for _, entity := range c.entities.ElementsIn(vector.GetBoxOfSize(erutan.NetVector3{X: 0, Y: 0, Z: 0}, utils.Config.GroundSize)) {
-		if val, ok := entity.(collisionEntity); ok {
-			if val.ID() == basic.ID() {
-				c.entities.Remove(val)
-			}
-		}
+	co := collisionObject{id, space, behaviourType, physics}
+	o := octree.NewObjectCube(co, co.Position.Get(0), co.Position.Get(1), co.Position.Get(2), size)
+	if !c.objects.Insert(*o) {
+		utils.DebugLogf("Failed to insert %v", o.ToString())
 	}
 }
 
-// RemoveByPosition TODO: just search in this box, may be faster?
-func (c *CollisionSystem) RemoveByPosition(position erutan.NetVector3) {
+// Remove removes an entity from the CollisionSystem.
+func (c *CollisionSystem) Remove(object octree.Object) {
+	c.objects.Remove(object)
 }
 
 // Update checks the entities for collision with eachother. Only Main entities are check for collision explicitly.
 // If one of the entities are solid, the SpaceComponent is adjusted so that the other entities don't pass through it.
 func (c *CollisionSystem) Update(dt float64) {
-	c.entities.Range(func(elements []interface{}) {
-		for i := range elements {
-			if a, ok := elements[i].(collisionEntity); ok {
-				// Gravity, checking if there is an object below, otherwise we fall ! (inefficient)
-				if a.UseGravity && c.Raycast(*a.Position, erutan.NetVector3{X: 0, Y: -1, Z: 0}, 0.1) == nil {
-					a.Position.Y -= (1 * dt) // TODO: mass -> heavier fall faster ...
-				}
-				iBox := vector.GetBox(*a.Position, *a.Scale)
-				for j := i + 1; j < len(elements); j++ {
-					if b, ok := elements[j].(collisionEntity); ok {
-						if a.ID() == b.ID() {
-							continue
-						}
-						jBox := vector.GetBox(*b.Position, *b.Scale)
-						if iBox.Intersects(&jBox) {
-							// TODO: fix all this translation thing
-							/*
-								translation := vector.MinimumTranslation(iBox, jBox)
-								// TODO: if overlap of more than 20% of its volume ...
-								if translation.X > c.entities[j].Scale.X/2 || translation.Y > c.entities[j].Scale.Y/2 || translation.Z > c.entities[j].Scale.Z/2 {
-									translation = vector.Div(translation, 2)
-									*c.entities[j].Position = vector.Add(*c.entities[j].Position, translation)
-								}
-							*/
-							ManagerInstance.Watch.Notify(utils.Event{Value: EntitiesCollided{a: a, b: b, dt: dt}})
-						}
-					}
-				}
+	// TODO: instead every entity handle it's own gravity ?
+	// Gravity, checking if there is an object below, otherwise we fall ! (inefficient)
+	objects := c.objects.GetObjects()
+	//utils.DebugLogf("len %v", len(objects))
+	for _, o := range objects {
+		if co, ok := o.Data.(collisionObject); ok {
+			min := o.Bounds.GetMin()
+			// Get collision under the object
+			b := protometry.Box{ // TODO: use object size instead
+				Center:  *protometry.NewVectorN(o.Bounds.Center.Get(0), min.Get(1)-0.25, o.Bounds.Center.Get(2)),
+				Extents: *protometry.NewVectorN(0, 0.24, 0),
+			}
+			//utils.DebugLogf("b : %v\n%v", o.Bounds.ToString(), b.ToString())
+			// Only fall if using gravity and nothing is below
+			if co.UseGravity && len(c.objects.GetColliding(b)) == 0 {
+				//utils.DebugLogf("FALL")
+				//_ = co.Position.Set(1, co.Position.Get(1)-1*dt) // TODO: mass -> heavier fall faster ...
+				newSc := *co.Component_SpaceComponent
+				_ = newSc.Position.Set(1, co.Position.Get(1)-10*dt)
+				//utils.DebugLogf("old pos: %v\nnew pos: %v", co.Position.ToString(), newSc.Position.ToString())
+				ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: &o, newSc: newSc, dt: dt}})
 			}
 		}
-	})
+	}
+
 }
 
-type EntitiesCollided struct {
-	a  collisionEntity
-	b  collisionEntity
+// PhysicsUpdate will check collisions with new space and update accordingly
+func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Component_SpaceComponent, dt float64) {
+	objectsCollided := c.objects.GetColliding(object.Bounds)
+	// Didn't collide anything, return
+	if len(objectsCollided) == 0 {
+		return
+	}
+	var objectCastedToCollisionObject *octree.Object
+
+	// We need to find the current Object in collisionSystem's Octree
+	for _, o := range objectsCollided {
+		if o.Data == object.Data { // Could instead compare ids
+			objectCastedToCollisionObject = &o
+		}
+	}
+
+	// This object hasn't been added to collisionSystem or has been removed, abort
+	if objectCastedToCollisionObject == nil {
+		return
+	}
+	for _, o := range objectsCollided {
+		// Ignore self-collision
+		if o.Data != objectCastedToCollisionObject.Data {
+			//utils.DebugLogf("collision between %v and\n%v", objectCastedToCollisionObject.ToString(), o.ToString())
+			// Notify every collided object
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectsCollided{a: &o, b: objectCastedToCollisionObject, dt: dt}})
+		}
+	}
+	co := objectCastedToCollisionObject.Data.(collisionObject)
+	// TODO: apply translation if collision ...
+	co.Position = newSc.Position // ?
+	c.objects.Move(objectCastedToCollisionObject, newSc.Position.Dimensions...)
+}
+
+func (c *CollisionSystem) Handle(event utils.Event) {
+	switch e := event.Value.(type) {
+	case ObjectPhysicsUpdated:
+		c.PhysicsUpdate(*e.object, e.newSc, e.dt)
+	}
+}
+
+type ObjectsCollided struct {
+	a  *octree.Object
+	b  *octree.Object
 	dt float64
 }
 
-// Raycast will try to find collisionEntity in a direction from an origin with a maximum distance
-func (c *CollisionSystem) Raycast(origin erutan.NetVector3, direction erutan.NetVector3, maxDistance float64) *collisionEntity {
-	// Default value in go ...
-	if maxDistance == -1 {
-		maxDistance = math.MaxFloat64
-	}
-	b := vector.Box{
-		Min: origin,
-		Max: vector.Mul(direction, maxDistance),
-	}
-	// TODO: optimization: should just stop at first element met, we don't care for others
-	hits := c.entities.ElementsIn(b)
-	if len(hits) == 0 {
-		return nil
-	}
-
-	if hit, ok := hits[0].(collisionEntity); ok {
-		return &hit
-	}
-	return nil
+type ObjectPhysicsUpdated struct {
+	object *octree.Object
+	newSc  erutan.Component_SpaceComponent
+	dt     float64
 }

@@ -1,29 +1,28 @@
 package main
 
 import (
-	context "context"
-	"io"
-	"log"
-	"testing"
-
-	main "github.com/user/erutan"
-	erutan "github.com/user/erutan/protos/realtime"
-	grpc "google.golang.org/grpc"
+	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/erutan/utils"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/oauth"
+	"io"
+	"testing"
+	"time"
 )
 
 func setFlags() {
-	Config.DebugMode = true
-	Config.Host = "0.0.0.0:50051"
+	utils.Config.DebugMode = true
+	utils.Config.Host = "0.0.0.0:50051"
+	utils.Config.GroundSize = 20
 }
 
-func google() (*grpc.ClientConn, error) {
-	auth, _ := oauth.NewApplicationDefault(context.Background(), "")
-	return grpc.Dial(
-		"greeter.googleapis.com", grpc.WithPerRPCCredentials(auth),
-	)
-}
+//func google() (*grpc.ClientConn, error) {
+//	auth, _ := oauth.NewApplicationDefault(context.Background(), "")
+//	return grpc.Dial(
+//		"greeter.googleapis.com", grpc.WithPerRPCCredentials(auth),
+//	)
+//}
 
 func ssl() (*grpc.ClientConn, error) {
 	creds, _ := credentials.NewClientTLSFromFile("server1.crt", "")
@@ -34,23 +33,50 @@ func ssl() (*grpc.ClientConn, error) {
 
 func TestClient(t *testing.T) {
 	setFlags()
-	go main.RunMain()
+	go RunMain()
+	tls := true
+	crtFile := "server1.crt"
+	serverAddr := "127.0.0.1:50051"
+	var opts []grpc.DialOption
+	if tls {
+		creds, err := credentials.NewClientTLSFromFile(crtFile, "")
+		if err != nil {
+			t.Fatalf("Failed to create TLS credentials %v", err)
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithInsecure())
+	}
 
-	// TODO: panic: runtime error: invalid memory address or nil pointer dereference [recovered]
-	//		 panic: runtime error: invalid memory address or nil pointer dereference
-	//		 [signal SIGSEGV: segmentation violation code=0x1 addr=0x30 pc=0x851a9b]
-	channel, _ := ssl()
-	client := erutan.NewErutanClient(channel)
-	stream, _ := client.Stream(context.Background())
+	opts = append(opts, grpc.WithBlock())
+	conn, err := grpc.Dial(serverAddr, opts...)
+	if err != nil {
+		t.Fatalf("fail to dial: %v", err)
+	}
+	defer conn.Close()
+	client := erutan.NewErutanClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	c, err := client.Stream(ctx)
+	if err != nil {
+		t.Fatalf("Couldn't open stream : %v", err)
+	}
+
+	go func() {
+		time.Sleep(10*time.Second)
+		t.Fatalf("Didn't receive any packet")
+	}()
 
 	for {
-		_, err := stream.Recv()
+		_, err := c.Recv()
 		if err == io.EOF {
 			// read done.
 			return
 		}
 		if err != nil {
-			log.Fatalf("Failed to receive a note : %v", err)
+			t.Fatalf("Failed to receive : %v", err)
 		}
+		// Successfully received a packet
+		t.SkipNow()
 	}
 }
