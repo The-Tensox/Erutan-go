@@ -5,7 +5,6 @@ import (
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
-	"time"
 )
 
 type AnyObject struct {
@@ -14,6 +13,7 @@ type AnyObject struct {
 	*erutan.Component_RenderComponent
 	*erutan.Component_BehaviourTypeComponent
 	*erutan.Component_PhysicsComponent
+	*erutan.Component_NetworkBehaviourComponent
 }
 
 type eatableObject struct {
@@ -27,7 +27,7 @@ type EatableSystem struct {
 
 func NewEatableSystem() *EatableSystem {
 	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*10))}
+		utils.Config.GroundSize*1000))}
 }
 
 func (e *EatableSystem) Add(id uint64,
@@ -35,7 +35,7 @@ func (e *EatableSystem) Add(id uint64,
 	eo := eatableObject{id, space}
 	o := octree.NewObjectCube(eo, eo.Position.Get(0), eo.Position.Get(1), eo.Position.Get(2), 1)
 	if !e.objects.Insert(*o) {
-		utils.ServerLogf(time.Now(), "Failed to insert %v", o.ToString())
+		utils.DebugLogf("Failed to insert %v", o.ToString())
 	}
 }
 
@@ -47,31 +47,30 @@ func (e *EatableSystem) Remove(o octree.Object) {
 func (e *EatableSystem) Update(dt float64) {
 }
 
-func (e *EatableSystem) NotifyCallback(event utils.Event) {
+func (e *EatableSystem) Handle(event utils.Event) {
 	switch u := event.Value.(type) {
 	case ObjectsCollided:
 		a := u.a.Data.(collisionObject)
 		b := u.b.Data.(collisionObject)
 		// If an animal collided with me
-		if a.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
-			b.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
+		if a.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
+			b.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
 			newSc := b.Component_SpaceComponent
 			p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize, utils.Config.GroundSize),
 				utils.Config.GroundSize)
 			newSc.Position = &p
-			ManagerInstance.Watch.Notify(utils.Event{Value: ObjectPhysicsUpdated{object: u.b, newSc: *newSc, dt: u.dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: u.b, newSc: *newSc, dt: u.dt}})
 		}
 
-		if b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL &&
-			a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION {
+		if b.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
+			a.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
 			newSc := a.Component_SpaceComponent
 			p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize, utils.Config.GroundSize),
 				utils.Config.GroundSize)
 			newSc.Position = &p
-			ManagerInstance.Watch.Notify(utils.Event{Value: ObjectPhysicsUpdated{object: u.a, newSc: *newSc, dt: u.dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: u.a, newSc: *newSc, dt: u.dt}})
 		}
-
 	}
 }

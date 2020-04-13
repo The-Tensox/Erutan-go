@@ -5,7 +5,6 @@ import (
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
-	"time"
 )
 
 type collisionObject struct {
@@ -22,7 +21,7 @@ type CollisionSystem struct {
 
 func NewCollisionSystem() *CollisionSystem {
 	return &CollisionSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*100))}
+		utils.Config.GroundSize*1000))}
 }
 
 // Add adds an entity to the CollisionSystem. To be added, the entity has to have a basic and space component.
@@ -34,7 +33,7 @@ func (c *CollisionSystem) Add(id uint64,
 	co := collisionObject{id, space, behaviourType, physics}
 	o := octree.NewObjectCube(co, co.Position.Get(0), co.Position.Get(1), co.Position.Get(2), size)
 	if !c.objects.Insert(*o) {
-		utils.ServerLogf(time.Now(), "Failed to insert %v", o.ToString())
+		utils.DebugLogf("Failed to insert %v", o.ToString())
 	}
 }
 
@@ -48,14 +47,14 @@ func (c *CollisionSystem) Remove(object octree.Object) {
 func (c *CollisionSystem) Update(dt float64) {
 	// TODO: instead every entity handle it's own gravity ?
 	// Gravity, checking if there is an object below, otherwise we fall ! (inefficient)
-	objects := c.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVectorN(0, 0, 0), utils.Config.GroundSize*10))
+	objects := c.objects.GetObjects()
 	//utils.DebugLogf("len %v", len(objects))
 	for _, o := range objects {
 		if co, ok := o.Data.(collisionObject); ok {
 			min := o.Bounds.GetMin()
 			// Get collision under the object
 			b := protometry.Box{ // TODO: use object size instead
-				Center: *protometry.NewVectorN(o.Bounds.Center.Get(0), min.Get(1)-0.25, o.Bounds.Center.Get(2)),
+				Center:  *protometry.NewVectorN(o.Bounds.Center.Get(0), min.Get(1)-0.25, o.Bounds.Center.Get(2)),
 				Extents: *protometry.NewVectorN(0, 0.24, 0),
 			}
 			//utils.DebugLogf("b : %v\n%v", o.Bounds.ToString(), b.ToString())
@@ -66,7 +65,7 @@ func (c *CollisionSystem) Update(dt float64) {
 				newSc := *co.Component_SpaceComponent
 				_ = newSc.Position.Set(1, co.Position.Get(1)-10*dt)
 				//utils.DebugLogf("old pos: %v\nnew pos: %v", co.Position.ToString(), newSc.Position.ToString())
-				ManagerInstance.Watch.Notify(utils.Event{Value: ObjectPhysicsUpdated{object: &o, newSc: newSc, dt: dt}})
+				ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: &o, newSc: newSc, dt: dt}})
 			}
 		}
 	}
@@ -98,7 +97,7 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Compo
 		if o.Data != objectCastedToCollisionObject.Data {
 			//utils.DebugLogf("collision between %v and\n%v", objectCastedToCollisionObject.ToString(), o.ToString())
 			// Notify every collided object
-			ManagerInstance.Watch.Notify(utils.Event{Value: ObjectsCollided{a: &o, b: objectCastedToCollisionObject, dt: dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectsCollided{a: &o, b: objectCastedToCollisionObject, dt: dt}})
 		}
 	}
 	co := objectCastedToCollisionObject.Data.(collisionObject)
@@ -107,7 +106,7 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Compo
 	c.objects.Move(objectCastedToCollisionObject, newSc.Position.Dimensions...)
 }
 
-func (c *CollisionSystem) NotifyCallback(event utils.Event) {
+func (c *CollisionSystem) Handle(event utils.Event) {
 	switch e := event.Value.(type) {
 	case ObjectPhysicsUpdated:
 		c.PhysicsUpdate(*e.object, e.newSc, e.dt)
@@ -121,7 +120,7 @@ type ObjectsCollided struct {
 }
 
 type ObjectPhysicsUpdated struct {
-	object    *octree.Object
-	newSc erutan.Component_SpaceComponent
-	dt    float64
+	object *octree.Object
+	newSc  erutan.Component_SpaceComponent
+	dt     float64
 }

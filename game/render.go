@@ -18,7 +18,7 @@ type RenderSystem struct {
 
 func NewRenderSystem() *RenderSystem {
 	return &RenderSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*10))}
+		utils.Config.GroundSize*1000))}
 }
 
 func (r *RenderSystem) Add(id uint64,
@@ -33,7 +33,7 @@ func (r *RenderSystem) Remove(object octree.Object) {
 }
 
 func (r *RenderSystem) Update(dt float64) {
-	//o := r.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize))
+	//o := r.objects.GetAllObjects()
 	//for i := range o {
 	//	if ro, ok := o[i].Data.(renderObject); ok && ro.Green > 10{
 	//		utils.DebugLogf("ground %v", ro.Id)

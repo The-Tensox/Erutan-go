@@ -20,15 +20,16 @@ var (
 // Manager ...
 // TODO: later create settings / config for manager ?
 type Manager struct {
+	// World is the structure that handle all Systems in the Entity Component System design
 	World ecs.World
 
-	ClientStreams sync.Map
+	// ClientsOut is a map that send packets to clients (map[string]chan Packet)
+	ClientsOut sync.Map
+	// Map a client to settings (map[string]ClientSettings)
+	ClientsSettings sync.Map
 
-	// Broadcast is a global channel to send packets to clients
+	// Broadcast is a channel to send packets to every clients
 	Broadcast chan erutan.Packet
-
-	// Receive receive packets from clients
-	Receive chan *erutan.Packet
 
 	Watch utils.Watch
 }
@@ -40,28 +41,28 @@ func Initialize() {
 			&Manager{
 				World:     ecs.World{},
 				Broadcast: make(chan erutan.Packet, 1000),
-				Receive:   make(chan *erutan.Packet, 1000),
-				Watch:     utils.Watch{},
+				Watch:     *utils.NewWatch(),
 			}
 	})
 }
 
 // Run start handling gameplay
 func (m *Manager) Run() {
-	go m.Listen()
-
+	go m.Watch.Listen()
 	h := NewHerbivorousSystem()
 	e := NewEatableSystem()
 	c := NewCollisionSystem()
-	m.World.AddSystem(c)
+	n := NewNetworkSystem(utils.GetProtoTime())
 	m.World.AddSystem(h)
 	m.World.AddSystem(e)
+	m.World.AddSystem(c)
 	m.World.AddSystem(NewRenderSystem())
-	m.World.AddSystem(NewNetworkSystem(utils.GetProtoTime()))
+	m.World.AddSystem(n)
 
-	m.Watch.Add(h)
-	m.Watch.Add(e)
-	m.Watch.Add(c)
+	m.Watch.Register(h)
+	m.Watch.Register(e)
+	m.Watch.Register(c)
+	m.Watch.Register(n)
 
 	gs := utils.Config.GroundSize - 1
 	//p := perlin.NewPerlin(1, 10, 10, 100)
@@ -102,11 +103,21 @@ func (m *Manager) Run() {
 		m.AddHerbivorous(&p, protometry.NewVectorN(1, 1, 1), -1)
 	}
 
+	nodes := c.objects.GetNodes()
+	for _, n := range nodes {
+		r := n.GetRegion()
+		//min := r.GetMin()
+		m.AddDebug(&r.Center, r.Extents.Get(0)*2) // It's a cube anyway
+	}
+
 	// Main loop
 	lastUpdateTime := utils.GetProtoTime()
 	for {
-		dt := float64(utils.GetProtoTime() - lastUpdateTime)/math.Pow(10, 9)
+		dt := float64(utils.GetProtoTime()-lastUpdateTime) / math.Pow(10, 9)
+		//utils.DebugLogf("time %v", utils.Config.TimeScale)
+
 		if dt > 0.0001 { // 50fps
+			//utils.DebugLogf("tick")
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
 			m.World.Update(dt * utils.Config.TimeScale)
 			lastUpdateTime = utils.GetProtoTime()
@@ -114,40 +125,78 @@ func (m *Manager) Run() {
 	}
 }
 
-// Listen ...
-func (m *Manager) Listen() {
-	for {
-		select {
-		case p := <-m.Receive:
-			switch t := p.Type.(type) {
-			case *erutan.Packet_UpdateParameters:
-				for _, element := range t.UpdateParameters.Parameters {
-					switch param := element.Type.(type) {
-					case *erutan.Packet_UpdateParametersPacket_Parameter_TimeScale:
-						utils.Config.TimeScale = param.TimeScale
-					}
-				}
-			case *erutan.Packet_CreateEntity:
-				// Only handle herbivorous and client only has access to position
-				var sc erutan.Component_SpaceComponent
-				for _, c := range p.GetCreateEntity().Components {
-					if tmp := c.GetSpace(); tmp != nil {
-						sc = *tmp
-					}
-				}
-				m.AddHerbivorous(sc.Position, protometry.NewVectorN(1, 1, 1), -1)
-			default:
-				utils.DebugLogf("Client sent unimplemented packet: %v", t)
+// Handle ...
+func (m *Manager) Handle(tkn string, p erutan.Packet) {
+	switch t := p.Type.(type) {
+	case *erutan.Packet_UpdateParameters:
+		// Update the client settings
+		for _, p := range t.UpdateParameters.Parameters {
+			switch p.Type.(type) {
+			// No need to notify a change in timescale
+			case *erutan.Packet_UpdateParametersPacket_Parameter_Debug:
+				ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ClientSettingsUpdated{ClientToken: tkn, Settings: *t}})
 			}
 		}
+
+		// Then do some global (dangerous :p)) logic
+		for _, element := range t.UpdateParameters.Parameters {
+			switch param := element.Type.(type) {
+			case *erutan.Packet_UpdateParametersPacket_Parameter_TimeScale:
+				utils.DebugLogf("[%s] changed global timescale from %v to %v",
+					tkn,
+					utils.Config.TimeScale,
+					param.TimeScale)
+				utils.Config.TimeScale = param.TimeScale
+			}
+		}
+	case *erutan.Packet_CreateEntity:
+		// Only handle herbivorous and client only has access to position
+		var sc erutan.Component_SpaceComponent
+		for _, c := range p.GetCreateEntity().Components {
+			if tmp := c.GetSpace(); tmp != nil {
+				sc = *tmp
+			}
+		}
+		m.AddHerbivorous(sc.Position, protometry.NewVectorN(1, 1, 1), -1)
+		utils.DebugLogf("Entity created at %v", sc.Position.ToString())
+	default:
+		utils.DebugLogf("Client sent unimplemented packet: %v", t)
 	}
 }
 
-func (m *Manager) SyncNewClient(tkn string) {
+// TODO: bring together common building-blocks of these stuffs, it's too redundant
+
+func (m *Manager) AddDebug(position *protometry.VectorN, sideLength float64) {
+	id := ecs.NewId()
+	d := AnyObject{Id: id}
+	d.Component_SpaceComponent = &erutan.Component_SpaceComponent{
+		Position: position,
+		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
+		Scale:    protometry.NewVectorN(1, 1, 1),
+		Mesh:     utils.CreateCubeCenterBased(sideLength),
+	}
+	d.Component_RenderComponent = &erutan.Component_RenderComponent{
+		Red:   1,
+		Green: 1,
+		Blue:  1,
+		Alpha: 0.1,
+	}
+	d.Component_NetworkBehaviourComponent = &erutan.Component_NetworkBehaviourComponent{
+		Tag: erutan.Component_NetworkBehaviourComponent_DEBUG,
+	}
+	// Add our entity to the appropriate systems
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *NetworkSystem:
-			sys.SyncNewClient(tkn)
+			sys.Add(id,
+				sideLength,
+				[]*erutan.Component{
+					{Type: &erutan.Component_Space{Space: d.Component_SpaceComponent}},
+					{Type: &erutan.Component_Render{Render: d.Component_RenderComponent}},
+					{Type: &erutan.Component_NetworkBehaviour{NetworkBehaviour: d.Component_NetworkBehaviourComponent}},
+				})
+		case *RenderSystem:
+			sys.Add(id, d.Component_RenderComponent)
 		}
 	}
 }
@@ -159,15 +208,19 @@ func (m *Manager) AddGround(position *protometry.VectorN, sideLength float64) {
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
 		Scale:    protometry.NewVectorN(1, 1, 1),
-		Shape:    utils.CreateCube(sideLength),
+		Mesh:     utils.CreateCubeCenterBased(sideLength),
 	}
 	ground.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   0,
 		Green: -float32(position.Get(1)),
 		Blue:  0,
+		Alpha: 1,
 	}
 	ground.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
-		BehaviourType: erutan.Component_BehaviourTypeComponent_ANY,
+		Tag: erutan.Component_BehaviourTypeComponent_ANY,
+	}
+	ground.Component_NetworkBehaviourComponent = &erutan.Component_NetworkBehaviourComponent{
+		Tag: erutan.Component_NetworkBehaviourComponent_ALL,
 	}
 	ground.Component_PhysicsComponent = &erutan.Component_PhysicsComponent{
 		UseGravity: false,
@@ -177,15 +230,18 @@ func (m *Manager) AddGround(position *protometry.VectorN, sideLength float64) {
 		switch sys := system.(type) {
 		case *CollisionSystem:
 			sys.Add(id,
-				sideLength / 2,
+				sideLength,
 				ground.Component_SpaceComponent,
 				ground.Component_BehaviourTypeComponent,
 				ground.Component_PhysicsComponent)
 		case *NetworkSystem:
-			sys.Add(id, []*erutan.Component{
-				{Type: &erutan.Component_Space{Space: ground.Component_SpaceComponent}},
-				{Type: &erutan.Component_Render{Render: ground.Component_RenderComponent}},
-			})
+			sys.Add(id,
+				sideLength,
+				[]*erutan.Component{
+					{Type: &erutan.Component_Space{Space: ground.Component_SpaceComponent}},
+					{Type: &erutan.Component_Render{Render: ground.Component_RenderComponent}},
+					{Type: &erutan.Component_NetworkBehaviour{NetworkBehaviour: ground.Component_NetworkBehaviourComponent}},
+				})
 		case *RenderSystem:
 			sys.Add(id, ground.Component_RenderComponent)
 		}
@@ -199,15 +255,19 @@ func (m *Manager) AddHerb(position *protometry.VectorN) {
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
 		Scale:    protometry.NewVectorN(1, 1, 1),
-		Shape:    utils.CreateCube(1),
+		Mesh:     utils.CreateCubeCenterBased(1),
 	}
 	herb.Component_RenderComponent = &erutan.Component_RenderComponent{
 		Red:   0,
 		Green: 0,
 		Blue:  1,
+		Alpha: 1,
 	}
 	herb.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
-		BehaviourType: erutan.Component_BehaviourTypeComponent_VEGETATION,
+		Tag: erutan.Component_BehaviourTypeComponent_VEGETATION,
+	}
+	herb.Component_NetworkBehaviourComponent = &erutan.Component_NetworkBehaviourComponent{
+		Tag: erutan.Component_NetworkBehaviourComponent_ALL,
 	}
 	herb.Component_PhysicsComponent = &erutan.Component_PhysicsComponent{
 		UseGravity: true,
@@ -217,17 +277,20 @@ func (m *Manager) AddHerb(position *protometry.VectorN) {
 		switch sys := system.(type) {
 		case *CollisionSystem:
 			sys.Add(id,
-				0.5,
+				1,
 				herb.Component_SpaceComponent,
 				herb.Component_BehaviourTypeComponent,
 				herb.Component_PhysicsComponent)
 		case *EatableSystem:
 			sys.Add(id, herb.Component_SpaceComponent)
 		case *NetworkSystem:
-			sys.Add(id, []*erutan.Component{
-				{Type: &erutan.Component_Space{Space: herb.Component_SpaceComponent}},
-				{Type: &erutan.Component_Render{Render: herb.Component_RenderComponent}},
-			})
+			sys.Add(id,
+				1,
+				[]*erutan.Component{
+					{Type: &erutan.Component_Space{Space: herb.Component_SpaceComponent}},
+					{Type: &erutan.Component_Render{Render: herb.Component_RenderComponent}},
+					{Type: &erutan.Component_NetworkBehaviour{NetworkBehaviour: herb.Component_NetworkBehaviourComponent}},
+				})
 		case *RenderSystem:
 			sys.Add(id, herb.Component_RenderComponent)
 		}
@@ -242,7 +305,7 @@ func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
 		Scale:    scale,
-		Shape:    utils.CreateCube(1),
+		Mesh:     utils.CreateCubeCenterBased(1),
 	}
 
 	herbivorous.Target = nil // target
@@ -250,9 +313,13 @@ func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry
 		Red:   1,
 		Green: 0,
 		Blue:  0,
+		Alpha: 1,
 	}
 	herbivorous.Component_BehaviourTypeComponent = &erutan.Component_BehaviourTypeComponent{
-		BehaviourType: erutan.Component_BehaviourTypeComponent_ANIMAL,
+		Tag: erutan.Component_BehaviourTypeComponent_ANIMAL,
+	}
+	herbivorous.Component_NetworkBehaviourComponent = &erutan.Component_NetworkBehaviourComponent{
+		Tag: erutan.Component_NetworkBehaviourComponent_ALL,
 	}
 	// Default param
 	if speed == -1 {
@@ -269,7 +336,7 @@ func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry
 		switch sys := system.(type) {
 		case *CollisionSystem:
 			sys.Add(id,
-				0.5,
+				1,
 				herbivorous.Component_SpaceComponent,
 				herbivorous.Component_BehaviourTypeComponent,
 				herbivorous.Component_PhysicsComponent)
@@ -280,12 +347,15 @@ func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry
 				herbivorous.Component_HealthComponent,
 				herbivorous.Component_SpeedComponent)
 		case *NetworkSystem:
-			sys.Add(id, []*erutan.Component{
-				{Type: &erutan.Component_Space{Space: herbivorous.Component_SpaceComponent}},
-				{Type: &erutan.Component_Render{Render: herbivorous.Component_RenderComponent}},
-				{Type: &erutan.Component_Health{Health: herbivorous.Component_HealthComponent}},
-				{Type: &erutan.Component_Speed{Speed: herbivorous.Component_SpeedComponent}},
-			})
+			sys.Add(id,
+				1,
+				[]*erutan.Component{
+					{Type: &erutan.Component_Space{Space: herbivorous.Component_SpaceComponent}},
+					{Type: &erutan.Component_Render{Render: herbivorous.Component_RenderComponent}},
+					{Type: &erutan.Component_Health{Health: herbivorous.Component_HealthComponent}},
+					{Type: &erutan.Component_Speed{Speed: herbivorous.Component_SpeedComponent}},
+					{Type: &erutan.Component_NetworkBehaviour{NetworkBehaviour: herbivorous.Component_NetworkBehaviourComponent}},
+				})
 		case *RenderSystem:
 			sys.Add(id, herbivorous.Component_RenderComponent)
 		}

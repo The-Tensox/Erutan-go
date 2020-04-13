@@ -5,8 +5,6 @@ import (
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
-	"github.com/golang/protobuf/ptypes"
-	"time"
 )
 
 // AddLife set health component life, clip it and return true if entity is dead
@@ -19,14 +17,6 @@ func AddLife(id uint64, o octree.Object, h *erutan.Component_HealthComponent, va
 		h.Life = 0
 	}
 	if h.Life == 0 {
-		ManagerInstance.Broadcast <- erutan.Packet{
-			Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-			Type: &erutan.Packet_DestroyEntity{
-				DestroyEntity: &erutan.Packet_DestroyEntityPacket{
-					EntityId: id,
-				},
-			},
-		}
 		ManagerInstance.World.RemoveObject(o)
 		return true
 	}
@@ -42,6 +32,7 @@ type Herbivorous struct {
 	*erutan.Component_BehaviourTypeComponent
 	*erutan.Component_SpeedComponent
 	*erutan.Component_PhysicsComponent
+	*erutan.Component_NetworkBehaviourComponent
 }
 
 type herbivorousObject struct {
@@ -58,7 +49,7 @@ type HerbivorousSystem struct {
 
 func NewHerbivorousSystem() *HerbivorousSystem {
 	return &HerbivorousSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*10))}
+		utils.Config.GroundSize*1000))}
 }
 
 func (h *HerbivorousSystem) Add(id uint64,
@@ -70,7 +61,7 @@ func (h *HerbivorousSystem) Add(id uint64,
 		health, speed}
 	o := octree.NewObjectCube(ho, ho.Position.Get(0), ho.Position.Get(1), ho.Position.Get(2), 1)
 	if !h.objects.Insert(*o) {
-		utils.ServerLogf(time.Now(), "Failed to insert %v", o.ToString())
+		utils.DebugLogf("Failed to insert %v", o.ToString())
 	}
 }
 
@@ -80,7 +71,7 @@ func (h *HerbivorousSystem) Remove(o octree.Object) {
 }
 
 func (h *HerbivorousSystem) Update(dt float64) {
-	objects := h.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize))
+	objects := h.objects.GetObjects()
 	for indexObject, object := range objects {
 		if ho, ok := object.Data.(herbivorousObject); ok {
 
@@ -107,7 +98,7 @@ func (h *HerbivorousSystem) Update(dt float64) {
 			newSc.Position = newPos
 
 			//entity.Component_SpaceComponent.Update(newSc)
-			ManagerInstance.Watch.Notify(utils.Event{Value: ObjectPhysicsUpdated{object: &object, newSc: newSc, dt: dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: &object, newSc: newSc, dt: dt}})
 			//entity.Position = &newPos
 		}
 	}
@@ -116,10 +107,9 @@ func (h *HerbivorousSystem) Update(dt float64) {
 func (h *HerbivorousSystem) findTarget(indexEntity int, ho *herbivorousObject) {
 	// Super brute-force inefficient implementations :)
 
-
 	// Reproduction mode
 	if ho.Life > 80 {
-		objects := h.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize))
+		objects := h.objects.GetObjects()
 		for j := indexEntity + 1; j < len(objects); j++ {
 			if otherHo, ok := objects[j].Data.(herbivorousObject); ok {
 				if ho.Life > 80 {
@@ -142,7 +132,7 @@ func (h *HerbivorousSystem) findTarget(indexEntity int, ho *herbivorousObject) {
 	for _, e := range ManagerInstance.World.Systems() {
 		if f, ok := e.(*EatableSystem); ok {
 			// Currently look for eatable on the whole map
-			eatables := f.objects.GetColliding(*protometry.NewBoxOfSize(*protometry.NewVector3Zero(), utils.Config.GroundSize))
+			eatables := f.objects.GetObjects()
 			// Is there any eatable on the map?
 			if len(eatables) > 0 {
 				//var minPosition *octree.Object
@@ -164,8 +154,10 @@ func (h *HerbivorousSystem) findTarget(indexEntity int, ho *herbivorousObject) {
 	}
 }
 
-
-func (h *HerbivorousSystem) NotifyCallback(event utils.Event) {
+func (h *HerbivorousSystem) Handle(event utils.Event) {
+	switch event.Value.(type) {
+	case ObjectsCollided:
+	}
 	//switch e := event.Value.(type) {
 	//case EntitiesCollided:
 	//	a := h.objects.GetColliding(*protometry.NewBoxOfSize(e.a.Bounds.Center, 1))[0]

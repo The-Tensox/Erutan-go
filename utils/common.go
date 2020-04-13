@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -45,7 +46,22 @@ func DebugLogf(format string, args ...interface{}) {
 	if !Config.DebugMode {
 		return
 	}
-	log.Printf("[%s] <<Debug>>: "+format, append([]interface{}{time.Now().Format(timeFormat)}, args...)...)
+	// Add more information  about the log, such as file name, function ...
+	pc := make([]uintptr, 10)  // at least 1 entry needed
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	file, line := f.FileLine(pc[0])
+	if s := strings.Split(file, "/"); len(s)>0 {
+		file = s[len(s)-1] // Only keep the file name, drop the path
+	}
+	var functionName string
+	if s := strings.Split(f.Name(), "/"); len(s)>0 {
+		functionName = s[len(s)-1] // Only keep the package.(class).function
+	}
+	file = fmt.Sprintf("%s - %s - L%d", functionName, file, line)
+	formattedString := append([]interface{}{time.Now().Format(timeFormat)}, []interface{}{file}...)
+	formattedString = append(formattedString, args...)
+	log.Printf("[%s] - [%s] <<Debug>>: "+format, formattedString...)
 }
 
 func SignalContext(ctx context.Context) context.Context {

@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/The-Tensox/octree v0.0.0-20200402182846-1f7eeddf526a
 	github.com/The-Tensox/protometry v0.0.0-20200402182624-0a8c69d9271d
-	github.com/aquilax/go-perlin v0.0.0-20191229124216-0af9ce917c28
+	github.com/aquilax/go-perlin v0.0.0-20191229124216-0af9ce917c28 // indirect
 	github.com/golang/protobuf v1.3.5
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 	golang.org/x/sys v0.0.0-20200409092240-59c9f1ba88fa // indirect

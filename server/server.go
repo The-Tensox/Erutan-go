@@ -78,7 +78,10 @@ func (s *Server) Run(ctx context.Context) error {
 	go game.ManagerInstance.Run()
 
 	go func() {
-		srv.Serve(l)
+		err = srv.Serve(l)
+		if err != nil {
+			utils.ServerLogf(time.Now(), "Failed to serve gRPC server")
+		}
 		cancel()
 	}()
 
@@ -93,6 +96,21 @@ func (s *Server) Run(ctx context.Context) error {
 
 func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 	tkn := utils.RandomString()
+	// TODO: later could image a default config for clients inside a yaml or whatever
+	clientSettings := erutan.Packet_UpdateParameters{
+		UpdateParameters: &erutan.Packet_UpdateParametersPacket{
+			Parameters: []*erutan.Packet_UpdateParametersPacket_Parameter{
+				{
+					Type: &erutan.Packet_UpdateParametersPacket_Parameter_TimeScale{TimeScale: 1},
+				},
+				{
+					Type: &erutan.Packet_UpdateParametersPacket_Parameter_Debug{Debug: false},
+				},
+			},
+		},
+	}
+
+	game.ManagerInstance.ClientsSettings.Store(tkn, clientSettings)
 	go s.sendBroadcasts(srv, tkn)
 	for {
 		req, err := srv.Recv()
@@ -101,9 +119,8 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 		} else if err != nil {
 			return err
 		}
-
 		// Distribute to the game manager to handle logic
-		game.ManagerInstance.Receive <- req
+		game.ManagerInstance.Handle(tkn, *req)
 	}
 
 	<-srv.Context().Done()
@@ -114,8 +131,14 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	stream := s.openStream(tkn)
 	defer s.closeStream(tkn)
 
-	// Send world state (only) to the client that connected
-	game.ManagerInstance.SyncNewClient(tkn)
+	// Notify that this client just connected
+	cs, _ := game.ManagerInstance.ClientsSettings.Load(tkn)
+	game.ManagerInstance.Watch.NotifyAll(utils.Event{
+		Value: utils.OnClientConnected{
+			ClientToken: tkn,
+			Settings:    cs.(erutan.Packet_UpdateParameters),
+		},
+	})
 	for {
 		select {
 		case <-srv.Context().Done():
@@ -140,7 +163,7 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 
 func (s *Server) broadcast(ctx context.Context) {
 	for res := range game.ManagerInstance.Broadcast {
-		game.ManagerInstance.ClientStreams.Range(func(key interface{}, stream interface{}) bool {
+		game.ManagerInstance.ClientsOut.Range(func(key interface{}, stream interface{}) bool {
 			if stream, ok := stream.(chan erutan.Packet); ok {
 				select {
 				case stream <- res:
@@ -155,26 +178,25 @@ func (s *Server) broadcast(ctx context.Context) {
 	}
 }
 
+// Initialize the communication of this client
 func (s *Server) openStream(tkn string) (stream chan erutan.Packet) {
-	stream = make(chan erutan.Packet, 10000000) // RIP COMPUTER
+	out := make(chan erutan.Packet, 10000000) // RIP COMPUTER
+	game.ManagerInstance.ClientsOut.Store(tkn, out)
 
-	game.ManagerInstance.ClientStreams.Store(tkn, stream)
-
-	utils.DebugLogf("opened stream for client %s", tkn)
-
+	utils.ServerLogf(time.Now(), "Opened stream for client [%s]", tkn)
 	// Return the channel
-	return
+	return out
 }
 
 func (s *Server) closeStream(tkn string) {
-	if stream, ok := game.ManagerInstance.ClientStreams.Load(tkn); ok {
-		game.ManagerInstance.ClientStreams.Delete(tkn)
+	if stream, ok := game.ManagerInstance.ClientsOut.Load(tkn); ok {
+		game.ManagerInstance.ClientsOut.Delete(tkn)
 		if res, ok := stream.(chan erutan.Packet); ok {
 			close(res)
 		}
 	}
-
-	utils.DebugLogf("closed stream for client %s", tkn)
+	game.ManagerInstance.ClientsSettings.Delete(tkn)
+	utils.ServerLogf(time.Now(), "Closed stream for client %s", tkn)
 }
 
 // valid validates the authorization.
