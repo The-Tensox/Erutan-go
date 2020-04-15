@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/The-Tensox/erutan/cfg"
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
@@ -16,6 +17,10 @@ type AnyObject struct {
 	*erutan.Component_NetworkBehaviourComponent
 }
 
+func (a AnyObject) ID() uint64 {
+	return a.Id
+}
+
 type eatableObject struct {
 	Id uint64
 	*erutan.Component_SpaceComponent
@@ -27,7 +32,7 @@ type EatableSystem struct {
 
 func NewEatableSystem() *EatableSystem {
 	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*1000))}
+		cfg.Global.Logic.GroundSize*1000))}
 }
 
 func (e *EatableSystem) Add(id uint64,
@@ -49,28 +54,28 @@ func (e *EatableSystem) Update(dt float64) {
 
 func (e *EatableSystem) Handle(event utils.Event) {
 	switch u := event.Value.(type) {
-	case ObjectsCollided:
-		a := u.a.Data.(collisionObject)
-		b := u.b.Data.(collisionObject)
+	case utils.ObjectsCollided:
+		a := u.A.Data.(collisionObject)
+		b := u.B.Data.(collisionObject)
 		// If an animal collided with me
 		if a.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			b.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
 			newSc := b.Component_SpaceComponent
-			p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize, utils.Config.GroundSize),
-				utils.Config.GroundSize)
+			p := protometry.RandomCirclePoint(*protometry.NewVectorN(cfg.Global.Logic.GroundSize, cfg.Global.Logic.GroundSize),
+				cfg.Global.Logic.GroundSize)
 			newSc.Position = &p
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: u.b, newSc: *newSc, dt: u.dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: u.B, NewSc: *newSc, Dt: u.Dt}})
 		}
 
 		if b.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			a.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
 			newSc := a.Component_SpaceComponent
-			p := protometry.RandomCirclePoint(*protometry.NewVectorN(utils.Config.GroundSize, utils.Config.GroundSize),
-				utils.Config.GroundSize)
+			p := protometry.RandomCirclePoint(*protometry.NewVectorN(cfg.Global.Logic.GroundSize, cfg.Global.Logic.GroundSize),
+				cfg.Global.Logic.GroundSize)
 			newSc.Position = &p
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: u.a, newSc: *newSc, dt: u.dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: u.A, NewSc: *newSc, Dt: u.Dt}})
 		}
 	}
 }

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"github.com/The-Tensox/erutan/cfg"
 	"log"
 	"math"
 	"math/rand"
@@ -43,7 +44,7 @@ func MessageLog(ts time.Time, name, msg string) {
 }
 
 func DebugLogf(format string, args ...interface{}) {
-	if !Config.DebugMode {
+	if !cfg.Global.DebugMode {
 		return
 	}
 	// Add more information  about the log, such as file name, function ...

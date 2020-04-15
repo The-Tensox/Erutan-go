@@ -24,13 +24,6 @@ func setFlags() {
 //	)
 //}
 
-func ssl() (*grpc.ClientConn, error) {
-	creds, _ := credentials.NewClientTLSFromFile("server1.crt", "")
-	return grpc.Dial(
-		"127.0.0.1:50051", grpc.WithTransportCredentials(creds),
-	)
-}
-
 func TestClient(t *testing.T) {
 	setFlags()
 	go RunMain()
@@ -62,13 +55,8 @@ func TestClient(t *testing.T) {
 		t.Fatalf("Couldn't open stream : %v", err)
 	}
 
-	go func() {
-		time.Sleep(10*time.Second)
-		t.Fatalf("Didn't receive any packet")
-	}()
-
 	for {
-		_, err := c.Recv()
+		p, err := c.Recv()
 		if err == io.EOF {
 			// read done.
 			return
@@ -76,7 +64,7 @@ func TestClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to receive : %v", err)
 		}
-		// Successfully received a packet
-		t.SkipNow()
+		time.Sleep(1*time.Second)
+		t.Logf("%v", p)
 	}
 }

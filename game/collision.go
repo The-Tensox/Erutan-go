@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/The-Tensox/erutan/cfg"
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
@@ -21,7 +22,7 @@ type CollisionSystem struct {
 
 func NewCollisionSystem() *CollisionSystem {
 	return &CollisionSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*1000))}
+		cfg.Global.Logic.GroundSize*1000))}
 }
 
 // Add adds an entity to the CollisionSystem. To be added, the entity has to have a basic and space component.
@@ -65,7 +66,7 @@ func (c *CollisionSystem) Update(dt float64) {
 				newSc := *co.Component_SpaceComponent
 				_ = newSc.Position.Set(1, co.Position.Get(1)-10*dt)
 				//utils.DebugLogf("old pos: %v\nnew pos: %v", co.Position.ToString(), newSc.Position.ToString())
-				ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: &o, newSc: newSc, dt: dt}})
+				ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: &o, NewSc: newSc, Dt: dt}})
 			}
 		}
 	}
@@ -97,7 +98,7 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Compo
 		if o.Data != objectCastedToCollisionObject.Data {
 			//utils.DebugLogf("collision between %v and\n%v", objectCastedToCollisionObject.ToString(), o.ToString())
 			// Notify every collided object
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectsCollided{a: &o, b: objectCastedToCollisionObject, dt: dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectsCollided{A: &o, B: objectCastedToCollisionObject, Dt: dt}})
 		}
 	}
 	co := objectCastedToCollisionObject.Data.(collisionObject)
@@ -106,21 +107,14 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Compo
 	c.objects.Move(objectCastedToCollisionObject, newSc.Position.Dimensions...)
 }
 
+func (c *CollisionSystem) Priority() int {
+	return 1
+}
+
 func (c *CollisionSystem) Handle(event utils.Event) {
 	switch e := event.Value.(type) {
-	case ObjectPhysicsUpdated:
-		c.PhysicsUpdate(*e.object, e.newSc, e.dt)
+	case utils.ObjectPhysicsUpdated:
+		c.PhysicsUpdate(*e.Object, e.NewSc, e.Dt)
 	}
 }
 
-type ObjectsCollided struct {
-	a  *octree.Object
-	b  *octree.Object
-	dt float64
-}
-
-type ObjectPhysicsUpdated struct {
-	object *octree.Object
-	newSc  erutan.Component_SpaceComponent
-	dt     float64
-}

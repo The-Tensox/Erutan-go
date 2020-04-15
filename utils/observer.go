@@ -2,6 +2,7 @@ package utils
 
 import (
 	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/octree"
 	"sync"
 )
 
@@ -34,9 +35,21 @@ type (
 		ClientToken string
 		Settings    erutan.Packet_UpdateParameters
 	}
-	OnClientConnected struct {
+	ClientConnected struct {
 		ClientToken string
 		Settings    erutan.Packet_UpdateParameters
+	}
+
+	ObjectsCollided struct {
+		A  *octree.Object
+		B  *octree.Object
+		Dt float64
+	}
+
+	ObjectPhysicsUpdated struct {
+		Object *octree.Object
+		NewSc  erutan.Component_SpaceComponent
+		Dt     float64
 	}
 )
 

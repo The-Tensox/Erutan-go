@@ -71,8 +71,6 @@ func (s *Server) Run(ctx context.Context) error {
 		return err
 	}
 
-	utils.ServerLogf(time.Now(), "Server started with config: %+v", utils.Config)
-
 	game.Initialize()
 	go s.broadcast(ctx)
 	go game.ManagerInstance.Run()
@@ -134,7 +132,7 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	// Notify that this client just connected
 	cs, _ := game.ManagerInstance.ClientsSettings.Load(tkn)
 	game.ManagerInstance.Watch.NotifyAll(utils.Event{
-		Value: utils.OnClientConnected{
+		Value: utils.ClientConnected{
 			ClientToken: tkn,
 			Settings:    cs.(erutan.Packet_UpdateParameters),
 		},
@@ -144,7 +142,9 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 		case <-srv.Context().Done():
 			return
 		case res := <-stream:
-			//utils.DebugLogf("Sending %v", res)
+			//if x := res.GetUpdateEntity(); x != nil {
+			//	utils.DebugLogf("Sending %v", x.Components)
+			//}
 			if s, ok := status.FromError(srv.Send(&res)); ok {
 				switch s.Code() {
 				case codes.OK:

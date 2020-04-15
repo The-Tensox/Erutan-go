@@ -1,0 +1,12 @@
+# Server configurations
+server:
+  host: "localhost"
+  port: 50051
+
+debug_mode: true
+
+logic:
+  time_scale: 1
+  ground_size: 20
+  initial_herbivorous: 5
+  initial_herbs: 5

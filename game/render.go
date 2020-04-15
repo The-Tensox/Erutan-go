@@ -1,8 +1,8 @@
 package game
 
 import (
+	"github.com/The-Tensox/erutan/cfg"
 	erutan "github.com/The-Tensox/erutan/protobuf"
-	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 )
@@ -18,7 +18,7 @@ type RenderSystem struct {
 
 func NewRenderSystem() *RenderSystem {
 	return &RenderSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*1000))}
+		cfg.Global.Logic.GroundSize*1000))}
 }
 
 func (r *RenderSystem) Add(id uint64,

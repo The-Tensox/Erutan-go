@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/The-Tensox/erutan/cfg"
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
@@ -35,6 +36,10 @@ type Herbivorous struct {
 	*erutan.Component_NetworkBehaviourComponent
 }
 
+func (h Herbivorous) ID() uint64 {
+	return h.Id
+}
+
 type herbivorousObject struct {
 	Id uint64
 	*erutan.Component_SpaceComponent
@@ -49,7 +54,7 @@ type HerbivorousSystem struct {
 
 func NewHerbivorousSystem() *HerbivorousSystem {
 	return &HerbivorousSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*1000))}
+		cfg.Global.Logic.GroundSize*1000))}
 }
 
 func (h *HerbivorousSystem) Add(id uint64,
@@ -98,7 +103,7 @@ func (h *HerbivorousSystem) Update(dt float64) {
 			newSc.Position = newPos
 
 			//entity.Component_SpaceComponent.Update(newSc)
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: ObjectPhysicsUpdated{object: &object, newSc: newSc, dt: dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: &object, NewSc: newSc, Dt: dt}})
 			//entity.Position = &newPos
 		}
 	}
@@ -156,7 +161,7 @@ func (h *HerbivorousSystem) findTarget(indexEntity int, ho *herbivorousObject) {
 
 func (h *HerbivorousSystem) Handle(event utils.Event) {
 	switch event.Value.(type) {
-	case ObjectsCollided:
+	case utils.ObjectsCollided:
 	}
 	//switch e := event.Value.(type) {
 	//case EntitiesCollided:

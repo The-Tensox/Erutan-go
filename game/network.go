@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/The-Tensox/erutan/cfg"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 	"math"
@@ -34,7 +35,7 @@ const (
 
 func NewNetworkSystem(lastUpdateTime float64) *NetworkSystem {
 	return &NetworkSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
-		utils.Config.GroundSize*1000)),
+		cfg.Global.Logic.GroundSize*1000)),
 		lastUpdateTime: lastUpdateTime}
 }
 
@@ -161,22 +162,9 @@ func (n *NetworkSystem) Update(dt float64) {
 
 func (n *NetworkSystem) Handle(event utils.Event) {
 	switch settings := event.Value.(type) {
-	case utils.OnClientConnected:
+	case utils.ClientConnected:
 		objects := n.objects.GetObjects()
-		var debugAction networkAction
-		// Get the network action
-		for _, paramInterface := range settings.Settings.UpdateParameters.Parameters {
-			switch p := paramInterface.Type.(type) {
-			case *erutan.Packet_UpdateParametersPacket_Parameter_Debug:
-				// So the client asked for debug mode just now
-				if p.Debug { // Debug objects need to be created
-					debugAction = create
-				} else { // Otherwise he turned it off, debug objects need to be destroyed
-					debugAction = destroy
-				}
-				utils.DebugLogf("Client [%s] turned mode debug to %v", settings.ClientToken, p.Debug)
-			}
-		}
+		debugAction := isDebug(settings.Settings.UpdateParameters.Parameters)
 
 		// Now tag every object with a network action
 		for i := range objects {
@@ -193,26 +181,15 @@ func (n *NetworkSystem) Handle(event utils.Event) {
 					// Object isn't tagged with debug network behaviour, just update
 					no.clientsAction[settings.ClientToken] = create
 				}
+				//utils.DebugLogf("%v", no.clientsAction[settings.ClientToken])
 			}
 		}
+
 
 	// Depending on settings, network system will "tag" every objects with an action to do for each clients
 	case utils.ClientSettingsUpdated:
 		objects := n.objects.GetObjects()
-		var debugAction networkAction
-		// Get the network action
-		for _, paramInterface := range settings.Settings.UpdateParameters.Parameters {
-			switch p := paramInterface.Type.(type) {
-			case *erutan.Packet_UpdateParametersPacket_Parameter_Debug:
-				// So the client asked for debug mode just now
-				if p.Debug { // Debug objects need to be created
-					debugAction = create
-				} else { // Otherwise he turned it off, debug objects need to be destroyed
-					debugAction = destroy
-				}
-				utils.DebugLogf("Client [%s] turned mode debug to %b", settings.ClientToken, p.Debug)
-			}
-		}
+		debugAction := isDebug(settings.Settings.UpdateParameters.Parameters)
 
 		// Now tag every object with a network action
 		for i := range objects {
@@ -229,7 +206,26 @@ func (n *NetworkSystem) Handle(event utils.Event) {
 					// Object isn't tagged with debug network behaviour, just update
 					no.clientsAction[settings.ClientToken] = update
 				}
+				//utils.DebugLogf("%v", no.clientsAction[settings.ClientToken])
 			}
 		}
 	}
+}
+
+
+func isDebug(params []*erutan.Packet_UpdateParametersPacket_Parameter) networkAction {
+	var debugAction networkAction
+	// Get the network action
+	for _, paramInterface := range params {
+		switch p := paramInterface.Type.(type) {
+		case *erutan.Packet_UpdateParametersPacket_Parameter_Debug:
+			// So the client asked for debug mode just now
+			if p.Debug { // Debug objects need to be created
+				debugAction = create
+			} else { // Otherwise he turned it off, debug objects need to be destroyed
+				debugAction = destroy
+			}
+		}
+	}
+	return debugAction
 }

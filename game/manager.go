@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/The-Tensox/erutan/cfg"
 	"math"
 	"sync"
 
@@ -17,8 +18,8 @@ var (
 	ManagerInstance *Manager
 )
 
+
 // Manager ...
-// TODO: later create settings / config for manager ?
 type Manager struct {
 	// World is the structure that handle all Systems in the Entity Component System design
 	World ecs.World
@@ -64,7 +65,7 @@ func (m *Manager) Run() {
 	m.Watch.Register(c)
 	m.Watch.Register(n)
 
-	gs := utils.Config.GroundSize - 1
+	gs := cfg.Global.Logic.GroundSize - 1
 	//p := perlin.NewPerlin(1, 10, 10, 100)
 	//for x := 0.; x < gs; x++ {
 	//	for y := 0.; y < gs; y++ {
@@ -93,22 +94,22 @@ func (m *Manager) Run() {
 			})
 		}
 	*/
-	for i := 0; i < 5; i++ {
+	for i := 0; i < cfg.Global.Logic.InitialHerbs; i++ {
 		p := protometry.RandomCirclePoint(*protometry.NewVectorN(gs/4, gs/4), gs/8)
 		m.AddHerb(&p)
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < cfg.Global.Logic.InitialHerbivorous; i++ {
 		p := protometry.RandomCirclePoint(*protometry.NewVectorN(gs/4, gs/4), gs/8)
 		m.AddHerbivorous(&p, protometry.NewVectorN(1, 1, 1), -1)
 	}
 
-	nodes := c.objects.GetNodes()
-	for _, n := range nodes {
-		r := n.GetRegion()
-		//min := r.GetMin()
-		m.AddDebug(&r.Center, r.Extents.Get(0)*2) // It's a cube anyway
-	}
+	//nodes := c.objects.GetNodes()
+	//for _, n := range nodes {
+	//	r := n.GetRegion()
+	//	//min := r.GetMin()
+	//	m.AddDebug(&r.Center, r.Extents.Get(0)*2) // It's a cube anyway
+	//}
 
 	// Main loop
 	lastUpdateTime := utils.GetProtoTime()
@@ -119,7 +120,9 @@ func (m *Manager) Run() {
 		if dt > 0.0001 { // 50fps
 			//utils.DebugLogf("tick")
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
-			m.World.Update(dt * utils.Config.TimeScale)
+			m.World.Update(dt * cfg.Global.Logic.TimeScale)
+			// TODO: maybe implement priority order, to have a fixed lifecycle order
+			// TODO: like collision -> render -> logic -> network (random example)
 			lastUpdateTime = utils.GetProtoTime()
 		}
 	}
@@ -144,9 +147,9 @@ func (m *Manager) Handle(tkn string, p erutan.Packet) {
 			case *erutan.Packet_UpdateParametersPacket_Parameter_TimeScale:
 				utils.DebugLogf("[%s] changed global timescale from %v to %v",
 					tkn,
-					utils.Config.TimeScale,
+					cfg.Global.Logic.TimeScale,
 					param.TimeScale)
-				utils.Config.TimeScale = param.TimeScale
+				cfg.Global.Logic.TimeScale = param.TimeScale
 			}
 		}
 	case *erutan.Packet_CreateEntity:
@@ -158,7 +161,7 @@ func (m *Manager) Handle(tkn string, p erutan.Packet) {
 			}
 		}
 		m.AddHerbivorous(sc.Position, protometry.NewVectorN(1, 1, 1), -1)
-		utils.DebugLogf("Entity created at %v", sc.Position.ToString())
+		utils.DebugLogf("Entity created at %v", sc.Position)
 	default:
 		utils.DebugLogf("Client sent unimplemented packet: %v", t)
 	}
