@@ -5,7 +5,6 @@ import (
 	"github.com/The-Tensox/erutan/cfg"
 	"github.com/The-Tensox/erutan/server"
 	"github.com/The-Tensox/erutan/utils"
-	"log"
 	"math/rand"
 	"os"
 	"time"
@@ -14,7 +13,6 @@ import (
 )
 
 func init() {
-	log.Printf("Init package")
 }
 
 

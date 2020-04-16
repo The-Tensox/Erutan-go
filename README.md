@@ -5,75 +5,70 @@ Trying to simulate evolution, synchronized over gRPC to clients that render a 3D
 
 To be used with [the Unity client](https://github.com/The-Tensox/Erutan-unity)
 
-# Installation
+## Usage
 
 ```bash
-# Unity project path
-export UNITY_PROJECT_PATH="/home/louis/Documents/unity/Erutan"
 go get github.com/The-Tensox/Erutan-go
 cd $GOPATH/src/github.com/The-Tensox/Erutan-go
-protoc --go_out=plugins=grpc:. protobuf/protometry/*.proto --go_opt=paths=source_relative
-protoc --go_out=plugins=grpc:. protobuf/*.proto --go_opt=paths=source_relative
-
-# If you updated the .proto, copy to unity project
-cp protobuf/*.proto $UNITY_PROJECT_PATH/Assets/protobuf
-cp protobuf/protometry/*.proto $UNITY_PROJECT_PATH/Assets/protobuf/protometry
+make run
 ```
 
-# SSL/TLS configuration
+### With Docker
 
 ```bash
-# Edit your /etc/ssl/openssl.cnf on the logstash host - add subjectAltName = IP:192.168.2.107 in [v3_ca] section
+make dbuild
+make drun
+```
+
+## SSL/TLS configuration
+
+```bash
+# Edit your /etc/ssl/openssl.cnf add subjectAltName = IP:127.0.0.1 in [v3_ca] section
+
+```bash
+# Maybe it will do the trick but not tested :D
+sed -i -e 's/#subjectAltName = IP:127.0.0.1/subjectAltName = IP:127.0.0.1/g' /etc/ssl/openssl.cnf
+```
 
 # Then
-openssl genrsa -out server1.key 2048
-openssl req -new -x509 -sha256 -key server1.key \
-              -out server1.crt -days 3650
+openssl genrsa -out server1.key 2048 &&
+openssl req -new -x509 -sha256 -key server1.key -out server1.crt -days 3650
 
-# Copy to Unity project
+# Copy to client project
 cp server1.crt $UNITY_PROJECT_PATH/Assets/StreamingAssets
 ```
 
-# Run
+## Tests
 
 ```bash
-go build -o ./bin/erutan && bin/erutan
-
-# Or
-go ruin main.go
+go test -v
 ```
 
-# Tests
-
-```bash
-go test ~/go/src/github.com/The-Tensox/erutan/utils/ -v
-```
-
-# Debug
+## Debug
 
 ```bash
 export GRPC_VERBOSITY=INFO
 ```
 
-# Entities
+## ECS
 
-# Components
+### Entities
+
+### Components
 
 Composed of physical data (position, rotation, scale, shape, collision ...), logic + others ...
 
-# Systems
+### Systems
 
 - Network: for every entity, simply synchronize every added components over network.
 - Collision: handle physics (what to do when a movement has been requested, how to handle collisions, gravity ...)
 - Herbivorous, Eatable, Vegetation (will probably change name over time): some temporary hard-coded logic
 - Render: how it should be rendered on clients
 
-# Roadmap
+### TODO
 
-- [ ] Better visual debugging (octree & others)
-- [ ] 2D -> 3D (map procedurally generated for example)
+- [x] Better visual debugging (octree & others)
 - [ ] More (useful) characteristics (no point in adding characteristics that doesn't help survival)
 - [ ] Environment-based evolution (stay near lakes, need more aquatic food, swim better idk, stay near desert, more resistant to sun ...)
 - [ ] Other languages libraries (Python, JS ...) allowing either other front-ends either building bots, client-side heavy computation stuff ...
 - [x] Octree
-- [ ] Deployable (docker, kubernetes)

@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"fmt"
 	"github.com/kelseyhightower/envconfig"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -28,6 +29,10 @@ type Config struct {
 		InitialHerbivorous int `yaml:"initial_herbivorous"`
 		InitialHerbs       int `yaml:"initial_herbs"`
 	} `yaml:"logic"`
+}
+
+func (c Config) String() string {
+	return fmt.Sprintf("[TODO]")
 }
 
 func Get() Config {
