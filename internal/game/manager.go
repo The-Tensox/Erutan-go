@@ -1,13 +1,14 @@
 package game
 
 import (
-	"github.com/The-Tensox/erutan/cfg"
+	"github.com/The-Tensox/erutan/internal/cfg"
+	"github.com/The-Tensox/erutan/internal/obs"
 	"math"
 	"sync"
 
-	ecs "github.com/The-Tensox/erutan/ecs"
+	ecs "github.com/The-Tensox/erutan/internal/ecs"
+	utils "github.com/The-Tensox/erutan/internal/utils"
 	erutan "github.com/The-Tensox/erutan/protobuf"
-	utils "github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/protometry"
 )
 
@@ -33,7 +34,7 @@ type Manager struct {
 	// Broadcast is a channel to send packets to every clients
 	Broadcast chan erutan.Packet
 
-	Watch utils.Watch
+	Watch obs.Watch
 }
 
 // Initialize returns a thread-safe singleton instance of the game manager
@@ -43,7 +44,7 @@ func Initialize() {
 			&Manager{
 				World:     ecs.World{},
 				Broadcast: make(chan erutan.Packet, 1000),
-				Watch:     *utils.NewWatch(),
+				Watch:     *obs.NewWatch(),
 			}
 	})
 }
@@ -84,16 +85,6 @@ func (m *Manager) Run() {
 		}
 	}
 
-	// Debug thing, wait client
-	/*
-		nbClients := 0
-		for nbClients == 0 {
-			m.ClientStreams.Range(func(key interface{}, value interface{}) bool {
-				nbClients++
-				return true
-			})
-		}
-	*/
 	for i := 0; i < cfg.Global.Logic.InitialHerbs; i++ {
 		p := protometry.RandomCirclePoint(*protometry.NewVectorN(gs/4, gs/4), gs/8)
 		m.AddHerb(&p)
@@ -115,10 +106,7 @@ func (m *Manager) Run() {
 	lastUpdateTime := utils.GetProtoTime()
 	for {
 		dt := float64(utils.GetProtoTime()-lastUpdateTime) / math.Pow(10, 9)
-		//utils.DebugLogf("time %v", utils.Config.TimeScale)
-
 		if dt > 0.0001 { // 50fps
-			//utils.DebugLogf("tick")
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
 			m.World.Update(dt * cfg.Global.Logic.TimeScale)
 			lastUpdateTime = utils.GetProtoTime()
@@ -135,7 +123,7 @@ func (m *Manager) Handle(tkn string, p erutan.Packet) {
 			switch p.Type.(type) {
 			// No need to notify a change in timescale
 			case *erutan.Packet_UpdateParametersPacket_Parameter_Debug:
-				ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ClientSettingsUpdated{ClientToken: tkn, Settings: *t}})
+				ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.ClientSettingsUpdated{ClientToken: tkn, Settings: *t}})
 			}
 		}
 

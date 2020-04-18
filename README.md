@@ -1,6 +1,10 @@
 
 # Erutan-go
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/The-Tensox/erutan-go?style=flat-square)](https://goreportcard.com/report/github.com/The-Tensox/erutan-go)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/The-Tensox/erutan-go)
+[![Release](https://img.shields.io/github/release/The-Tensox/erutan-go.svg?style=flat-square)](https://github.com/The-Tensox/erutan-go/releases/latest)
+
 Trying to simulate evolution, synchronized over gRPC to clients that render a 3D visualisation.
 
 To be used with [the Unity client](https://github.com/The-Tensox/Erutan-unity)

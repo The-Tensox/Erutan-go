@@ -1,10 +1,11 @@
 package game
 
 import (
-	"github.com/The-Tensox/erutan/cfg"
-	"github.com/The-Tensox/erutan/mon"
+	"github.com/The-Tensox/erutan/internal/cfg"
+	"github.com/The-Tensox/erutan/internal/mon"
+	"github.com/The-Tensox/erutan/internal/obs"
+	"github.com/The-Tensox/erutan/internal/utils"
 	erutan "github.com/The-Tensox/erutan/protobuf"
-	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 )
@@ -75,7 +76,7 @@ func (c *CollisionSystem) Update(dt float64) {
 				newSc := *co.Component_SpaceComponent
 				_ = newSc.Position.Set(1, co.Position.Get(1)-10*dt)
 				//utils.DebugLogf("old pos: %v\nnew pos: %v", co.Position.ToString(), newSc.Position.ToString())
-				ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: &o, NewSc: newSc, Dt: dt}})
+				ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.ObjectPhysicsUpdated{Object: &o, NewSc: newSc, Dt: dt}})
 			}
 		}
 	}
@@ -108,7 +109,7 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Compo
 			mon.CollisionCounter.Inc()
 			//utils.DebugLogf("collision between %v and\n%v", objectCastedToCollisionObject.ToString(), o.ToString())
 			// Notify every collided object
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectsCollided{Me: &o, Other: objectCastedToCollisionObject, Dt: dt}})
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.ObjectsCollided{Me: &o, Other: objectCastedToCollisionObject, Dt: dt}})
 		}
 	}
 	co := objectCastedToCollisionObject.Data.(collisionObject)
@@ -118,9 +119,9 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Compo
 }
 
 
-func (c *CollisionSystem) Handle(event utils.Event) {
+func (c *CollisionSystem) Handle(event obs.Event) {
 	switch e := event.Value.(type) {
-	case utils.ObjectPhysicsUpdated:
+	case obs.ObjectPhysicsUpdated:
 		c.PhysicsUpdate(*e.Object, e.NewSc, e.Dt)
 	}
 }

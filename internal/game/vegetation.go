@@ -1,9 +1,10 @@
 package game
 
 import (
-	"github.com/The-Tensox/erutan/cfg"
+	"github.com/The-Tensox/erutan/internal/cfg"
+	"github.com/The-Tensox/erutan/internal/obs"
+	"github.com/The-Tensox/erutan/internal/utils"
 	erutan "github.com/The-Tensox/erutan/protobuf"
-	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 )
@@ -53,9 +54,9 @@ func (e *EatableSystem) Remove(o octree.Object) {
 func (e *EatableSystem) Update(dt float64) {
 }
 
-func (e *EatableSystem) Handle(event utils.Event) {
+func (e *EatableSystem) Handle(event obs.Event) {
 	switch u := event.Value.(type) {
-	case utils.ObjectsCollided:
+	case obs.ObjectsCollided:
 		me := u.Me.Data.(collisionObject)
 		other := u.Other.Data.(collisionObject)
 		// If an animal collided with me
@@ -67,7 +68,7 @@ func (e *EatableSystem) Handle(event utils.Event) {
 			p := protometry.RandomCirclePoint(*protometry.NewVectorN(cfg.Global.Logic.GroundSize, cfg.Global.Logic.GroundSize),
 				cfg.Global.Logic.GroundSize)
 			newSc.Position = &p
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: u.Other, NewSc: *newSc, Dt: u.Dt}})
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.ObjectPhysicsUpdated{Object: u.Other, NewSc: *newSc, Dt: u.Dt}})
 		}
 
 		if other.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
@@ -77,7 +78,7 @@ func (e *EatableSystem) Handle(event utils.Event) {
 			p := protometry.RandomCirclePoint(*protometry.NewVectorN(cfg.Global.Logic.GroundSize, cfg.Global.Logic.GroundSize),
 				cfg.Global.Logic.GroundSize)
 			newSc.Position = &p
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: u.Me, NewSc: *newSc, Dt: u.Dt}})
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.ObjectPhysicsUpdated{Object: u.Me, NewSc: *newSc, Dt: u.Dt}})
 		}
 	}
 }

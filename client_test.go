@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/The-Tensox/erutan/cfg"
+	"github.com/The-Tensox/erutan/internal/cfg"
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

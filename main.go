@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/The-Tensox/erutan/cfg"
-	"github.com/The-Tensox/erutan/server"
-	"github.com/The-Tensox/erutan/utils"
+	"github.com/The-Tensox/erutan/internal/cfg"
+	"github.com/The-Tensox/erutan/internal/server"
+	"github.com/The-Tensox/erutan/internal/utils"
 	"math/rand"
 	"os"
 	"time"

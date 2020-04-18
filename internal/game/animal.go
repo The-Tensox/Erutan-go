@@ -1,31 +1,15 @@
 package game
 
 import (
-	"github.com/The-Tensox/erutan/cfg"
-	"github.com/The-Tensox/erutan/mon"
+	"github.com/The-Tensox/erutan/internal/cfg"
+	"github.com/The-Tensox/erutan/internal/mon"
+	"github.com/The-Tensox/erutan/internal/obs"
+	"github.com/The-Tensox/erutan/internal/utils"
 	erutan "github.com/The-Tensox/erutan/protobuf"
-	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 )
 
-
-// AddLife set health component life, clip it and return true if entity is dead
-func AddLife(id uint64, o octree.Object, h *erutan.Component_HealthComponent, value float64) bool {
-	h.Life += value
-	// Clip 0, 100
-	/*if h.Life > 100 {
-		h.Life = 100
-	} else*/if h.Life < 0 {
-		h.Life = 0
-	}
-	mon.LifeGauge.Set(h.Life)
-	if h.Life == 0 {
-		ManagerInstance.World.RemoveObject(o)
-		return true
-	}
-	return false
-}
 
 type Herbivorous struct {
 	Id uint64
@@ -49,6 +33,23 @@ type herbivorousObject struct {
 	Target *AnyObject
 	*erutan.Component_HealthComponent
 	*erutan.Component_SpeedComponent
+}
+
+// AddLife set health component life, clip it and return true if entity is dead
+func (h *herbivorousObject) addLife(o octree.Object, value float64) bool {
+	h.Life += value
+	// Clip 0, 100
+	/*if h.Life > 100 {
+		h.Life = 100
+	} else*/if h.Life < 0 {
+		h.Life = 0
+	}
+	mon.LifeGauge.Set(h.Life)
+	if h.Life == 0 {
+		ManagerInstance.World.RemoveObject(o)
+		return true
+	}
+	return false
 }
 
 type HerbivorousSystem struct {
@@ -89,13 +90,13 @@ func (h *HerbivorousSystem) Update(dt float64) {
 	for indexObject, object := range objects {
 		if ho, ok := object.Data.(herbivorousObject); ok {
 
-			//volume := ho.Component_SpaceComponent.Scale.Get(0) * ho.Component_SpaceComponent.Scale.Get(1) * ho.Component_SpaceComponent.Scale.Get(2)
-			//
-			//// Every animal lose life proportional to deltatime, volume and speed
-			//// So bigger and faster animals need more food
-			//if AddLife(ho.Id, object, ho.Component_HealthComponent, -3*dt*volume*(ho.MoveSpeed/100)) {
-			//	// Dead
-			//}
+			volume := ho.Component_SpaceComponent.Scale.Get(0) * ho.Component_SpaceComponent.Scale.Get(1) * ho.Component_SpaceComponent.Scale.Get(2)
+
+			// Every animal lose life proportional to deltatime, volume and speed
+			// So bigger and faster animals need more food
+			if ho.addLife(object, -3*dt*volume*(ho.MoveSpeed/100)) {
+				// Dead
+			}
 
 			// If I don't have a target, let's find one
 			if ho.Target == nil {
@@ -112,8 +113,10 @@ func (h *HerbivorousSystem) Update(dt float64) {
 			newSc.Position = newPos
 
 			//entity.Component_SpaceComponent.Update(newSc)
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: &object, NewSc: newSc, Dt: dt}})
-			//entity.Position = &newPos
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.ObjectPhysicsUpdated{Object: &object, NewSc: newSc, Dt: dt}})
+			// TODO: should actually get a response from the collision system telling where it landed after applying collisions
+			// (event or something)
+			ho.Position = newPos
 		}
 	}
 }
@@ -168,7 +171,7 @@ func (h *HerbivorousSystem) findTarget(indexEntity int, ho *herbivorousObject) {
 	}
 }
 
-func (h *HerbivorousSystem) Handle(event utils.Event) {
+func (h *HerbivorousSystem) Handle(event obs.Event) {
 	//switch e := event.Value.(type) {
 	//// In the occurrence of this event we want to check if the animal collided
 	//// with a vegetation or another animal and take appropriate actions

@@ -2,34 +2,22 @@ package utils
 
 import (
 	"fmt"
-	"github.com/The-Tensox/erutan/cfg"
+	"github.com/The-Tensox/erutan/internal/cfg"
 	"log"
 	"math"
 	"math/rand"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"golang.org/x/net/context"
 )
 
 const timeFormat = "03:04:05 PM"
-
-func tsToTime(ts *timestamp.Timestamp) time.Time {
-	t, err := ptypes.Timestamp(ts)
-	if err != nil {
-		return time.Now()
-	}
-	return t.In(time.Local)
-}
 
 func ClientLogf(ts time.Time, format string, args ...interface{}) {
 	log.Printf("[%s] <<Client>>: "+format, append([]interface{}{ts.Format(timeFormat)}, args...)...)
@@ -83,8 +71,6 @@ func SignalContext(ctx context.Context) context.Context {
 	return ctx
 }
 
-var seededRand *rand.Rand = rand.New(
-	rand.NewSource(time.Now().UnixNano()))
 
 // RandomString generates a random string of 4 bytes
 func RandomString() string {
@@ -99,19 +85,4 @@ func RandFloats(min, max float64) float64 {
 
 func GetProtoTime() float64 {
 	return float64(ptypes.TimestampNow().Seconds)*math.Pow(10, 9) + float64(ptypes.TimestampNow().Nanos)
-}
-
-func DoEvery(d time.Duration, f func(time.Time)) {
-	for x := range time.Tick(d) {
-		f(x)
-	}
-}
-
-// Equals fails the test if exp is not equal to act.
-func Equals(tb testing.TB, exp, act interface{}) {
-	if !reflect.DeepEqual(exp, act) {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
-		tb.FailNow()
-	}
 }

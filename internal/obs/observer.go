@@ -1,4 +1,4 @@
-package utils
+package obs
 
 import (
 	erutan "github.com/The-Tensox/erutan/protobuf"

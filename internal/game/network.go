@@ -1,14 +1,15 @@
 package game
 
 import (
-	"github.com/The-Tensox/erutan/cfg"
-	"github.com/The-Tensox/erutan/mon"
+	"github.com/The-Tensox/erutan/internal/cfg"
+	"github.com/The-Tensox/erutan/internal/mon"
+	"github.com/The-Tensox/erutan/internal/obs"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 	"math"
 
+	"github.com/The-Tensox/erutan/internal/utils"
 	erutan "github.com/The-Tensox/erutan/protobuf"
-	"github.com/The-Tensox/erutan/utils"
 	"github.com/golang/protobuf/ptypes"
 )
 
@@ -153,9 +154,9 @@ func (n *NetworkSystem) Update(dt float64) {
 	}
 }
 
-func (n *NetworkSystem) Handle(event utils.Event) {
+func (n *NetworkSystem) Handle(event obs.Event) {
 	switch settings := event.Value.(type) {
-	case utils.ClientConnected:
+	case obs.ClientConnected:
 		objects := n.objects.GetObjects()
 		debugAction := isDebug(settings.Settings.UpdateParameters.Parameters)
 
@@ -179,7 +180,7 @@ func (n *NetworkSystem) Handle(event utils.Event) {
 		}
 
 	// Depending on settings, network system will "tag" every objects with an action to do for each clients
-	case utils.ClientSettingsUpdated:
+	case obs.ClientSettingsUpdated:
 		objects := n.objects.GetObjects()
 		debugAction := isDebug(settings.Settings.UpdateParameters.Parameters)
 

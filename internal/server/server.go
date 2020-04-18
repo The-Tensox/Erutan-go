@@ -3,7 +3,8 @@ package server
 import (
 	context "context"
 	"fmt"
-	"github.com/The-Tensox/erutan/cfg"
+	"github.com/The-Tensox/erutan/internal/cfg"
+	"github.com/The-Tensox/erutan/internal/obs"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io"
@@ -13,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/The-Tensox/erutan/game"
+	"github.com/The-Tensox/erutan/internal/game"
+	"github.com/The-Tensox/erutan/internal/utils"
 	erutan "github.com/The-Tensox/erutan/protobuf"
-	"github.com/The-Tensox/erutan/utils"
 
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -138,8 +139,8 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 
 	// Notify that this client just connected
 	cs, _ := game.ManagerInstance.ClientsSettings.Load(tkn)
-	game.ManagerInstance.Watch.NotifyAll(utils.Event{
-		Value: utils.ClientConnected{
+	game.ManagerInstance.Watch.NotifyAll(obs.Event{
+		Value: obs.ClientConnected{
 			ClientToken: tkn,
 			Settings:    cs.(erutan.Packet_UpdateParameters),
 		},
