@@ -104,12 +104,12 @@ func (m *Manager) Run() {
 		m.AddHerbivorous(&p, protometry.NewVectorN(1, 1, 1), -1)
 	}
 
-	//nodes := c.objects.GetNodes()
-	//for _, n := range nodes {
-	//	r := n.GetRegion()
-	//	//min := r.GetMin()
-	//	m.AddDebug(&r.Center, r.Extents.Get(0)*2) // It's a cube anyway
-	//}
+	nodes := c.objects.GetNodes()
+	for _, n := range nodes {
+		r := n.GetRegion()
+		//min := r.GetMin()
+		m.AddDebug(&r.Center, r.Extents.Get(0)*2) // It's a cube anyway
+	}
 
 	// Main loop
 	lastUpdateTime := utils.GetProtoTime()
@@ -152,10 +152,10 @@ func (m *Manager) Handle(tkn string, p erutan.Packet) {
 				cfg.Global.Logic.TimeScale = param.TimeScale
 			}
 		}
-	case *erutan.Packet_CreateEntity:
+	case *erutan.Packet_UpdateEntity: // FIXME
 		// Only handle herbivorous and client only has access to position
 		var sc erutan.Component_SpaceComponent
-		for _, c := range p.GetCreateEntity().Components {
+		for _, c := range p.GetUpdateEntity().Components {
 			if tmp := c.GetSpace(); tmp != nil {
 				sc = *tmp
 			}

@@ -20,7 +20,7 @@ message Metadata {
 }
 
 // Mesh is used for rendering meshes
-message Mesh {
+message Mesh { // TODO: -> protometry ?
 	repeated protometry.VectorN vertices = 2;
 	repeated int32 tris = 3;
 	repeated protometry.VectorN normals = 4;
@@ -86,22 +86,13 @@ message Packet {
     // TODO: entity -> object ? or maybe not
     oneof type {
         // General physical entitys
-        CreateEntityPacket create_entity = 2;
-        UpdateEntityPacket update_entity = 3;
-        UpdatePositionPacket update_position = 4;
-        UpdateRotationPacket update_rotation = 5;
-        DestroyEntityPacket destroy_entity = 6;
-
-        // Animals & Environment
-        UpdateAnimalPacket update_animal = 7;
+        UpdateEntityPacket update_entity = 2;
+        UpdatePositionPacket update_position = 3;
+        UpdateRotationPacket update_rotation = 4;
+        DestroyEntityPacket destroy_entity = 5;
 
         // Server general
-        UpdateParametersPacket update_parameters = 8;
-    }
-
-    message CreateEntityPacket {
-        uint64 entity_id = 1;
-        repeated Component components = 2; 
+        UpdateParametersPacket update_parameters = 6;
     }
 
     message UpdateEntityPacket {
@@ -121,11 +112,6 @@ message Packet {
 
     message DestroyEntityPacket {
         uint64 entity_id = 1;
-    }
-
-    message UpdateAnimalPacket { // Maybe will have more params later
-        uint64 entity_id = 1;
-        double life = 2;
     }
 
     message UpdateParametersPacket {

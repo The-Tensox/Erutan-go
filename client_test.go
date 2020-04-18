@@ -1,8 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"github.com/The-Tensox/erutan/cfg"
 	erutan "github.com/The-Tensox/erutan/protobuf"
-	"github.com/The-Tensox/erutan/utils"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -11,12 +12,6 @@ import (
 	"time"
 )
 
-func setFlags() {
-	utils.Config.DebugMode = true
-	utils.Config.Host = "0.0.0.0:50051"
-	utils.Config.GroundSize = 20
-}
-
 //func google() (*grpc.ClientConn, error) {
 //	auth, _ := oauth.NewApplicationDefault(context.Background(), "")
 //	return grpc.Dial(
@@ -24,15 +19,13 @@ func setFlags() {
 //	)
 //}
 
-func TestClient(t *testing.T) {
-	setFlags()
+func connect(t *testing.T) *grpc.ClientConn {
+	cfg.Global = cfg.Get()
 	go RunMain()
 	tls := true
-	crtFile := "server1.crt"
-	serverAddr := "127.0.0.1:50051"
 	var opts []grpc.DialOption
 	if tls {
-		creds, err := credentials.NewClientTLSFromFile(crtFile, "")
+		creds, err := credentials.NewClientTLSFromFile(cfg.Global.SslCert, "")
 		if err != nil {
 			t.Fatalf("Failed to create TLS credentials %v", err)
 		}
@@ -42,10 +35,15 @@ func TestClient(t *testing.T) {
 	}
 
 	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial(serverAddr, opts...)
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", cfg.Global.Server.Host, cfg.Global.Server.Port), opts...)
 	if err != nil {
 		t.Fatalf("fail to dial: %v", err)
 	}
+	return conn
+}
+
+func TestClient(t *testing.T) {
+	conn := connect(t)
 	defer conn.Close()
 	client := erutan.NewErutanClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -54,7 +52,6 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't open stream : %v", err)
 	}
-
 	for {
 		p, err := c.Recv()
 		if err == io.EOF {

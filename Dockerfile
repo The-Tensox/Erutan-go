@@ -10,14 +10,24 @@ RUN go get -d \
 WORKDIR /go/src/github.com/The-Tensox/erutan
 COPY . .
 
-RUN go build -o app .
+#RUN go build -o app .
+RUN go install .
 
-# --- Execution Stage
+# Run the outyet command by default when the container starts.
+ENTRYPOINT /go/bin/erutan
 
-FROM alpine:latest
-EXPOSE 6262/tcp
+# Prometheus metrics
+EXPOSE 34555
 
-WORKDIR /root/
-COPY --from=builder /go/src/github.com/The-Tensox/erutan/app .
+# gRPC
+EXPOSE 50051
 
-ENTRYPOINT ["./app"]
+## --- Execution Stage
+#
+#FROM alpine:latest
+#EXPOSE 34555/tcp
+#
+#WORKDIR /root/
+#COPY --from=builder /go/src/github.com/The-Tensox/erutan/app .
+#
+#ENTRYPOINT ["./app"]

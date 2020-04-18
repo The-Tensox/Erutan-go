@@ -7,16 +7,20 @@ import (
 	"os"
 )
 
-var Global Config // Temporary solution xD
+var Global Config // Good old global variable :D
 
 type Config struct {
+	// DebugMode name is self explanatory ...
+	DebugMode bool `yaml:"debug_mode"`
+	SslCert string `yaml:"ssl_cert"`
+	SslKey string `yaml:"ssl_key"`
+	MetricsPort string `yaml:"metrics_port"`
+
 	Server struct {
 		Port string `yaml:"port"`
 		Host string `yaml:"host"`
 	} `yaml:"server"`
 
-	// DebugMode name is self explanatory ...
-	DebugMode bool `yaml:"debug_mode"`
 
 	/******* LOGIC *******/
 	Logic struct {

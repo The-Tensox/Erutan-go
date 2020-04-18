@@ -4,12 +4,40 @@ import (
 	"github.com/The-Tensox/erutan/cfg"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
+	"github.com/prometheus/client_golang/prometheus"
 	"math"
 
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/golang/protobuf/ptypes"
 )
+
+func init() {
+	prometheus.MustRegister(NetworkActionIgnoreCounter)
+	prometheus.MustRegister(NetworkActionUpdateCounter)
+	prometheus.MustRegister(NetworkActionDestroyCounter)
+}
+
+var NetworkActionIgnoreCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "network_action_ignore",
+		Help: "Network action ignore",
+	},
+)
+var NetworkActionUpdateCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "network_action_update",
+		Help: "Network action update",
+	},
+)
+
+var NetworkActionDestroyCounter = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "network_action_destroy",
+		Help: "Network action destroy",
+	},
+)
+
 
 type networkObject struct {
 	Id         uint64
@@ -28,7 +56,6 @@ type networkAction int
 
 const (
 	ignore networkAction = iota
-	create
 	update
 	destroy
 )
@@ -68,8 +95,8 @@ func (n *NetworkSystem) Add(id uint64,
 	// Broadcast on network the add
 	ManagerInstance.Broadcast <- erutan.Packet{
 		Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-		Type: &erutan.Packet_CreateEntity{
-			CreateEntity: &erutan.Packet_CreateEntityPacket{
+		Type: &erutan.Packet_UpdateEntity{
+			UpdateEntity: &erutan.Packet_UpdateEntityPacket{
 				EntityId:   id,
 				Components: components,
 			},
@@ -102,7 +129,7 @@ func (n *NetworkSystem) Remove(object octree.Object) {
 func (n *NetworkSystem) Update(dt float64) {
 	// TODO: should it be better to update only when there is a change ... (observer ..) ?
 	// Limit synchronisation to specific fps to avoid burning your computer
-	if (utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.0001 /**float64(len(objects))*/ { // times len obj = more obj = less net updates
+	if (utils.GetProtoTime()-n.lastUpdateTime)/math.Pow(10, 9) > 0.1 /**float64(len(objects))*/ { // times len obj = more obj = less net updates
 		objects := n.objects.GetObjects()
 		for _, entity := range objects {
 			if no, ok := entity.Data.(networkObject); ok {
@@ -112,22 +139,10 @@ func (n *NetworkSystem) Update(dt float64) {
 						if channel, isChannel := streamInterface.(chan erutan.Packet); isChannel {
 							switch clientValue {
 							case ignore: // Ignore is continuous
-								//utils.DebugLogf("Ignore")
+								NetworkActionIgnoreCounter.Inc()
 
-							case create: // Create is discrete, only do it once then update
-								//utils.DebugLogf("Create")
-								channel <- erutan.Packet{
-									Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
-									Type: &erutan.Packet_CreateEntity{
-										CreateEntity: &erutan.Packet_CreateEntityPacket{
-											EntityId:   no.Id,
-											Components: no.components,
-										},
-									},
-								}
-								no.clientsAction[keyClient] = update
 							case update: // Update is continuous too, don't change it
-								//utils.DebugLogf("Update")
+								NetworkActionUpdateCounter.Inc()
 
 								channel <- erutan.Packet{
 									Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
@@ -139,7 +154,7 @@ func (n *NetworkSystem) Update(dt float64) {
 									},
 								}
 							case destroy: // Destroy is discrete, only do it once then ignore
-								//utils.DebugLogf("Destroy")
+								NetworkActionDestroyCounter.Inc()
 
 								channel <- erutan.Packet{
 									Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
@@ -179,7 +194,7 @@ func (n *NetworkSystem) Handle(event utils.Event) {
 				}
 				if netBehaviour != nil && netBehaviour.Tag == erutan.Component_NetworkBehaviourComponent_ALL {
 					// Object isn't tagged with debug network behaviour, just update
-					no.clientsAction[settings.ClientToken] = create
+					no.clientsAction[settings.ClientToken] = update
 				}
 				//utils.DebugLogf("%v", no.clientsAction[settings.ClientToken])
 			}
@@ -221,7 +236,7 @@ func isDebug(params []*erutan.Packet_UpdateParametersPacket_Parameter) networkAc
 		case *erutan.Packet_UpdateParametersPacket_Parameter_Debug:
 			// So the client asked for debug mode just now
 			if p.Debug { // Debug objects need to be created
-				debugAction = create
+				debugAction = update
 			} else { // Otherwise he turned it off, debug objects need to be destroyed
 				debugAction = destroy
 			}

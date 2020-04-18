@@ -12,8 +12,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-func init() {
-}
 
 
 // RunMain starts the server and everything for prod, used in tests
@@ -34,5 +32,6 @@ func main() {
 	cfg.Global = cfg.Get()
 	utils.ServerLogf(time.Now(), "Starting server with config %v", cfg.Global)
 	RunMain()
+
 }
 

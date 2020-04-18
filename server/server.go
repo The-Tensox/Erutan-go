@@ -2,9 +2,14 @@ package server
 
 import (
 	context "context"
+	"fmt"
+	"github.com/The-Tensox/erutan/cfg"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"strings"
 	"time"
 
@@ -23,8 +28,6 @@ import (
 var (
 	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
 	errInvalidToken    = status.Errorf(codes.Unauthenticated, "invalid token")
-	crt                = "server1.crt"
-	key                = "server1.key"
 )
 
 type Server struct {
@@ -42,7 +45,7 @@ func (s *Server) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cert, err := credentials.NewServerTLSFromFile(crt, key)
+	cert, err := credentials.NewServerTLSFromFile(cfg.Global.SslCert, cfg.Global.SslKey)
 	if err != nil {
 		log.Fatalf("failed to load key pair: %s", err)
 	}
@@ -55,6 +58,7 @@ func (s *Server) Run(ctx context.Context) error {
 		// RPCs. To configure an interceptor for streaming RPCs, see:
 		// https://godoc.org/google.golang.org/grpc#StreamInterceptor
 		grpc.UnaryInterceptor(ensureValidToken),
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		//grpc.StreamInterceptor(streamInterceptor),
 		// Enable TLS for all incoming connections.
 		grpc.Creds(cert),
@@ -64,8 +68,11 @@ func (s *Server) Run(ctx context.Context) error {
 		}),
 	}
 	srv := grpc.NewServer(opts...)
+	grpc_prometheus.Register(srv)
+	// Register Prometheus metrics handler.
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(fmt.Sprintf(":%s", cfg.Global.MetricsPort), nil)
 	erutan.RegisterErutanServer(srv, s)
-
 	l, err := net.Listen("tcp", s.Host)
 	if err != nil {
 		return err
@@ -220,6 +227,7 @@ func ensureValidToken(ctx context.Context, req interface{}, info *grpc.UnaryServ
 	if !ok {
 		return nil, errMissingMetadata
 	}
+	_, _ = grpc_prometheus.UnaryServerInterceptor(ctx, req, info, handler)
 	// The keys within metadata.MD are normalized to lowercase.
 	// See: https://godoc.org/google.golang.org/grpc/metadata#New
 	if !valid(md["authorization"]) {

@@ -30,11 +30,9 @@ make drun
 sed -i -e 's/#subjectAltName = IP:127.0.0.1/subjectAltName = IP:127.0.0.1/g' /etc/ssl/openssl.cnf
 ```
 
-# Then
+```bash
 openssl genrsa -out server1.key 2048 &&
 openssl req -new -x509 -sha256 -key server1.key -out server1.crt -days 3650
-
-# Copy to client project
 cp server1.crt $UNITY_PROJECT_PATH/Assets/StreamingAssets
 ```
 
@@ -44,10 +42,20 @@ cp server1.crt $UNITY_PROJECT_PATH/Assets/StreamingAssets
 go test -v
 ```
 
-## Debug
+## Monitoring
+
+Some metrics are exposed.
+
+![](docs/images/grafana.png)
+
+Install and run [Grafana](https://grafana.com) + [Prometheus](https://prometheus.io/docs/introduction/overview) to monitor erutan-go:
 
 ```bash
-export GRPC_VERBOSITY=INFO
+docker run -d --rm --name prom -p 9090:9090 -v $(pwd)/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+docker run -d --rm --name graf -p 3000:3000 grafana/grafana
+
+# Or simply
+make dmon
 ```
 
 ## ECS

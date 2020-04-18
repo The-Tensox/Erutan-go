@@ -1,12 +1,15 @@
 # Server configurations
 server:
-  host: "localhost"
+  host: "127.0.0.1"
   port: 50051
-
-debug_mode: true
 
 logic:
   time_scale: 1
   ground_size: 20
   initial_herbivorous: 5
   initial_herbs: 5
+
+debug_mode: true
+ssl_cert: server1.crt
+ssl_key: server1.key
+metrics_port: 34555
