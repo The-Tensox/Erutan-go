@@ -55,7 +55,7 @@ dstop:
 	docker stop $(CONTAINER_NAME)-$(CONTAINER_INSTANCE)
 
 dmon:
-	docker run -d --rm --name prom -p 9090:9090 -v $(pwd)/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+	docker run -d --rm --name prom -p 9090:9090 -v $(pwd)/mon/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
 	docker run -d --rm --name graf -p 3000:3000 grafana/grafana
 
 default: dbuild

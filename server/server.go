@@ -236,7 +236,3 @@ func ensureValidToken(ctx context.Context, req interface{}, info *grpc.UnaryServ
 	// Continue execution of handler after ensuring a valid token.
 	return handler(ctx, req)
 }
-
-func streamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	return nil
-}

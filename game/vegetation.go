@@ -8,6 +8,7 @@ import (
 	"github.com/The-Tensox/protometry"
 )
 
+
 type AnyObject struct {
 	Id uint64
 	*erutan.Component_SpaceComponent
@@ -55,27 +56,28 @@ func (e *EatableSystem) Update(dt float64) {
 func (e *EatableSystem) Handle(event utils.Event) {
 	switch u := event.Value.(type) {
 	case utils.ObjectsCollided:
-		a := u.A.Data.(collisionObject)
-		b := u.B.Data.(collisionObject)
+		me := u.Me.Data.(collisionObject)
+		other := u.Other.Data.(collisionObject)
 		// If an animal collided with me
-		if a.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
-			b.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
+		// TODO: FIXME
+		if me.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
+			other.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			newSc := b.Component_SpaceComponent
+			newSc := other.Component_SpaceComponent
 			p := protometry.RandomCirclePoint(*protometry.NewVectorN(cfg.Global.Logic.GroundSize, cfg.Global.Logic.GroundSize),
 				cfg.Global.Logic.GroundSize)
 			newSc.Position = &p
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: u.B, NewSc: *newSc, Dt: u.Dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: u.Other, NewSc: *newSc, Dt: u.Dt}})
 		}
 
-		if b.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
-			a.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
+		if other.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
+			me.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			newSc := a.Component_SpaceComponent
+			newSc := me.Component_SpaceComponent
 			p := protometry.RandomCirclePoint(*protometry.NewVectorN(cfg.Global.Logic.GroundSize, cfg.Global.Logic.GroundSize),
 				cfg.Global.Logic.GroundSize)
 			newSc.Position = &p
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: u.A, NewSc: *newSc, Dt: u.Dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectPhysicsUpdated{Object: u.Me, NewSc: *newSc, Dt: u.Dt}})
 		}
 	}
 }

@@ -2,11 +2,13 @@ package game
 
 import (
 	"github.com/The-Tensox/erutan/cfg"
+	"github.com/The-Tensox/erutan/mon"
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 )
+
 
 // AddLife set health component life, clip it and return true if entity is dead
 func AddLife(id uint64, o octree.Object, h *erutan.Component_HealthComponent, value float64) bool {
@@ -17,6 +19,7 @@ func AddLife(id uint64, o octree.Object, h *erutan.Component_HealthComponent, va
 	} else*/if h.Life < 0 {
 		h.Life = 0
 	}
+	mon.LifeGauge.Set(h.Life)
 	if h.Life == 0 {
 		ManagerInstance.World.RemoveObject(o)
 		return true
@@ -52,9 +55,14 @@ type HerbivorousSystem struct {
 	objects octree.Octree
 }
 
+
 func NewHerbivorousSystem() *HerbivorousSystem {
 	return &HerbivorousSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
 		cfg.Global.Logic.GroundSize*1000))}
+}
+
+func (h *HerbivorousSystem) Priority() int {
+	return 2
 }
 
 func (h *HerbivorousSystem) Add(id uint64,
@@ -68,6 +76,7 @@ func (h *HerbivorousSystem) Add(id uint64,
 	if !h.objects.Insert(*o) {
 		utils.DebugLogf("Failed to insert %v", o.ToString())
 	}
+	mon.SpeedGauge.Set(speed.MoveSpeed)
 }
 
 // Remove removes the Object from the System. This is what most Remove methods will look like
@@ -160,19 +169,28 @@ func (h *HerbivorousSystem) findTarget(indexEntity int, ho *herbivorousObject) {
 }
 
 func (h *HerbivorousSystem) Handle(event utils.Event) {
-	switch event.Value.(type) {
-	case utils.ObjectsCollided:
-	}
 	//switch e := event.Value.(type) {
-	//case EntitiesCollided:
-	//	a := h.objects.GetColliding(*protometry.NewBoxOfSize(e.a.Bounds.Center, 1))[0]
-	//	b := h.objects.GetColliding(*protometry.NewBoxOfSize(e.b.Bounds.Center, 1))[0]
-	//	// TODO: clean this ugly as hell function
+	//// In the occurrence of this event we want to check if the animal collided
+	//// with a vegetation or another animal and take appropriate actions
+	//case utils.ObjectsCollided:
+	//	meInHerbivorousSystem := h.objects.GetColliding(e.Me.Bounds)
+	//	otherInHerbivorousSystem := h.objects.GetColliding(e.Other.Bounds)
 	//
-	//	if e.a.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION &&
-	//		e.b.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL {
+	//	// This rare case could happen if objects collided but was removed from this system (actually shouldn't happen)
+	//	if (meInHerbivorousSystem == nil || otherInHerbivorousSystem == nil) ||
+	//		(len(meInHerbivorousSystem) == 0 || len(otherInHerbivorousSystem) == 0){
+	//		utils.DebugLogf("Collision with removed animal")
+	//		return
+	//	}
+	//
+	//	me := meInHerbivorousSystem[0].Data.(herbivorousObject)
+	//	other := otherInHerbivorousSystem[0].Data.(herbivorousObject)
+	//
+	//
+	//	if m &&
+	//		e.Other.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL {
 	//		AddLife(e.b.Id, b, b.Component_HealthComponent, 40)
-	//
+	//		mon.EatCounter.Inc()
 	//		// Reset target for everyone that had this target
 	//		for _, e := range h.entities {
 	//			if (e.Target != nil && a != nil) && (e.Target.ID() == a.ID()) {
@@ -182,7 +200,7 @@ func (h *HerbivorousSystem) Handle(event utils.Event) {
 	//	} else if e.b.BehaviourType == erutan.Component_BehaviourTypeComponent_VEGETATION &&
 	//		e.a.BehaviourType == erutan.Component_BehaviourTypeComponent_ANIMAL {
 	//		AddLife(*a.BasicEntity, a.Component_HealthComponent, 40)
-	//
+	//		mon.EatCounter.Inc()
 	//		// Reset target for everyone that had this target
 	//		for _, e := range h.entities {
 	//			if (e.Target != nil && b != nil) && (e.Target.ID() == b.ID()) {
@@ -197,6 +215,7 @@ func (h *HerbivorousSystem) Handle(event utils.Event) {
 	//			if b.Target != nil {
 	//				b.Target = nil
 	//			}
+	//			mon.ReproductionCounter.Inc()
 	//			AddLife(*a.BasicEntity, a.Component_HealthComponent, -50)
 	//			AddLife(*b.BasicEntity, b.Component_HealthComponent, -50)
 	//			speed := ((a.MoveSpeed + b.MoveSpeed) / 2) * utils.RandFloats(0.5, 1.5)

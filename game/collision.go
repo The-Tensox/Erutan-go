@@ -2,6 +2,7 @@ package game
 
 import (
 	"github.com/The-Tensox/erutan/cfg"
+	"github.com/The-Tensox/erutan/mon"
 	erutan "github.com/The-Tensox/erutan/protobuf"
 	"github.com/The-Tensox/erutan/utils"
 	"github.com/The-Tensox/octree"
@@ -25,6 +26,10 @@ func NewCollisionSystem() *CollisionSystem {
 		cfg.Global.Logic.GroundSize*1000))}
 }
 
+func (c *CollisionSystem) Priority() int {
+	return 0
+}
+
 // Add adds an entity to the CollisionSystem. To be added, the entity has to have a basic and space component.
 func (c *CollisionSystem) Add(id uint64,
 	size float64,
@@ -35,12 +40,16 @@ func (c *CollisionSystem) Add(id uint64,
 	o := octree.NewObjectCube(co, co.Position.Get(0), co.Position.Get(1), co.Position.Get(2), size)
 	if !c.objects.Insert(*o) {
 		utils.DebugLogf("Failed to insert %v", o.ToString())
+	} else {
+		mon.PhysicalObjectsGauge.Inc()
 	}
 }
 
 // Remove removes an entity from the CollisionSystem.
 func (c *CollisionSystem) Remove(object octree.Object) {
-	c.objects.Remove(object)
+	if c.objects.Remove(object) {
+		mon.PhysicalObjectsGauge.Dec()
+	}
 }
 
 // Update checks the entities for collision with eachother. Only Main entities are check for collision explicitly.
@@ -75,7 +84,7 @@ func (c *CollisionSystem) Update(dt float64) {
 
 // PhysicsUpdate will check collisions with new space and update accordingly
 func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Component_SpaceComponent, dt float64) {
-	objectsCollided := c.objects.GetColliding(object.Bounds)
+	objectsCollided := c.objects.GetColliding(*protometry.NewBoxOfSize(*newSc.Position, 1))
 	// Didn't collide anything, return
 	if len(objectsCollided) == 0 {
 		return
@@ -96,9 +105,10 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Compo
 	for _, o := range objectsCollided {
 		// Ignore self-collision
 		if o.Data != objectCastedToCollisionObject.Data {
+			mon.CollisionCounter.Inc()
 			//utils.DebugLogf("collision between %v and\n%v", objectCastedToCollisionObject.ToString(), o.ToString())
 			// Notify every collided object
-			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectsCollided{A: &o, B: objectCastedToCollisionObject, Dt: dt}})
+			ManagerInstance.Watch.NotifyAll(utils.Event{Value: utils.ObjectsCollided{Me: &o, Other: objectCastedToCollisionObject, Dt: dt}})
 		}
 	}
 	co := objectCastedToCollisionObject.Data.(collisionObject)
@@ -107,9 +117,6 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newSc erutan.Compo
 	c.objects.Move(objectCastedToCollisionObject, newSc.Position.Dimensions...)
 }
 
-func (c *CollisionSystem) Priority() int {
-	return 1
-}
 
 func (c *CollisionSystem) Handle(event utils.Event) {
 	switch e := event.Value.(type) {

@@ -2,9 +2,9 @@ package game
 
 import (
 	"github.com/The-Tensox/erutan/cfg"
+	"github.com/The-Tensox/erutan/mon"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
-	"github.com/prometheus/client_golang/prometheus"
 	"math"
 
 	erutan "github.com/The-Tensox/erutan/protobuf"
@@ -12,39 +12,13 @@ import (
 	"github.com/golang/protobuf/ptypes"
 )
 
-func init() {
-	prometheus.MustRegister(NetworkActionIgnoreCounter)
-	prometheus.MustRegister(NetworkActionUpdateCounter)
-	prometheus.MustRegister(NetworkActionDestroyCounter)
-}
-
-var NetworkActionIgnoreCounter = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Name: "network_action_ignore",
-		Help: "Network action ignore",
-	},
-)
-var NetworkActionUpdateCounter = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Name: "network_action_update",
-		Help: "Network action update",
-	},
-)
-
-var NetworkActionDestroyCounter = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Name: "network_action_destroy",
-		Help: "Network action destroy",
-	},
-)
-
 
 type networkObject struct {
-	Id         uint64
+	Id uint64
 	// clientsAction will apply a specific action for every action related to this object
 	// for example filtering out an object if too far away ...
 	clientsAction map[string]networkAction
-	components []*erutan.Component
+	components    []*erutan.Component
 }
 
 type NetworkSystem struct {
@@ -64,6 +38,10 @@ func NewNetworkSystem(lastUpdateTime float64) *NetworkSystem {
 	return &NetworkSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
 		cfg.Global.Logic.GroundSize*1000)),
 		lastUpdateTime: lastUpdateTime}
+}
+
+func (n *NetworkSystem) Priority() int {
+	return 1
 }
 
 func (n *NetworkSystem) Add(id uint64,
@@ -139,10 +117,10 @@ func (n *NetworkSystem) Update(dt float64) {
 						if channel, isChannel := streamInterface.(chan erutan.Packet); isChannel {
 							switch clientValue {
 							case ignore: // Ignore is continuous
-								NetworkActionIgnoreCounter.Inc()
+								mon.NetworkActionIgnoreCounter.Inc()
 
 							case update: // Update is continuous too, don't change it
-								NetworkActionUpdateCounter.Inc()
+								mon.NetworkActionUpdateCounter.Inc()
 
 								channel <- erutan.Packet{
 									Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
@@ -154,13 +132,13 @@ func (n *NetworkSystem) Update(dt float64) {
 									},
 								}
 							case destroy: // Destroy is discrete, only do it once then ignore
-								NetworkActionDestroyCounter.Inc()
+								mon.NetworkActionDestroyCounter.Inc()
 
 								channel <- erutan.Packet{
 									Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
 									Type: &erutan.Packet_DestroyEntity{
 										DestroyEntity: &erutan.Packet_DestroyEntityPacket{
-											EntityId:   no.Id,
+											EntityId: no.Id,
 										},
 									},
 								}
@@ -200,7 +178,6 @@ func (n *NetworkSystem) Handle(event utils.Event) {
 			}
 		}
 
-
 	// Depending on settings, network system will "tag" every objects with an action to do for each clients
 	case utils.ClientSettingsUpdated:
 		objects := n.objects.GetObjects()
@@ -226,7 +203,6 @@ func (n *NetworkSystem) Handle(event utils.Event) {
 		}
 	}
 }
-
 
 func isDebug(params []*erutan.Packet_UpdateParametersPacket_Parameter) networkAction {
 	var debugAction networkAction

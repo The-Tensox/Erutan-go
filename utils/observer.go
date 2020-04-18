@@ -41,8 +41,8 @@ type (
 	}
 
 	ObjectsCollided struct {
-		A  *octree.Object
-		B  *octree.Object
+		Me  *octree.Object
+		Other  *octree.Object
 		Dt float64
 	}
 

@@ -51,7 +51,7 @@ Some metrics are exposed.
 Install and run [Grafana](https://grafana.com) + [Prometheus](https://prometheus.io/docs/introduction/overview) to monitor erutan-go:
 
 ```bash
-docker run -d --rm --name prom -p 9090:9090 -v $(pwd)/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+docker run -d --rm --name prom -p 9090:9090 -v $(pwd)/mon/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
 docker run -d --rm --name graf -p 3000:3000 grafana/grafana
 
 # Or simply
@@ -68,10 +68,12 @@ Composed of physical data (position, rotation, scale, shape, collision ...), log
 
 ### Systems
 
-- Network: for every entity, simply synchronize every added components over network.
-- Collision: handle physics (what to do when a movement has been requested, how to handle collisions, gravity ...)
-- Herbivorous, Eatable, Vegetation (will probably change name over time): some temporary hard-coded logic
-- Render: how it should be rendered on clients
+Sorted in execution order:
+
+1. Collision: handle physics (what to do when a movement has been requested, how to handle collisions, gravity ...)
+2. Network: for every entity, simply synchronize every added components over network.
+3. Logic: Herbivorous, Eatable, Vegetation (will probably change name over time): some temporary hard-coded logic
+
 
 ### TODO
 
@@ -80,3 +82,4 @@ Composed of physical data (position, rotation, scale, shape, collision ...), log
 - [ ] Environment-based evolution (stay near lakes, need more aquatic food, swim better idk, stay near desert, more resistant to sun ...)
 - [ ] Other languages libraries (Python, JS ...) allowing either other front-ends either building bots, client-side heavy computation stuff ...
 - [x] Octree
+- [ ] API for sending commands (/spawn thing, /kick him, /rain ...)

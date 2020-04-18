@@ -19,6 +19,7 @@ var (
 )
 
 
+
 // Manager ...
 type Manager struct {
 	// World is the structure that handle all Systems in the Entity Component System design
@@ -57,7 +58,6 @@ func (m *Manager) Run() {
 	m.World.AddSystem(h)
 	m.World.AddSystem(e)
 	m.World.AddSystem(c)
-	m.World.AddSystem(NewRenderSystem())
 	m.World.AddSystem(n)
 
 	m.Watch.Register(h)
@@ -121,8 +121,6 @@ func (m *Manager) Run() {
 			//utils.DebugLogf("tick")
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
 			m.World.Update(dt * cfg.Global.Logic.TimeScale)
-			// TODO: maybe implement priority order, to have a fixed lifecycle order
-			// TODO: like collision -> render -> logic -> network (random example)
 			lastUpdateTime = utils.GetProtoTime()
 		}
 	}
@@ -198,8 +196,6 @@ func (m *Manager) AddDebug(position *protometry.VectorN, sideLength float64) {
 					{Type: &erutan.Component_Render{Render: d.Component_RenderComponent}},
 					{Type: &erutan.Component_NetworkBehaviour{NetworkBehaviour: d.Component_NetworkBehaviourComponent}},
 				})
-		case *RenderSystem:
-			sys.Add(id, d.Component_RenderComponent)
 		}
 	}
 }
@@ -245,8 +241,6 @@ func (m *Manager) AddGround(position *protometry.VectorN, sideLength float64) {
 					{Type: &erutan.Component_Render{Render: ground.Component_RenderComponent}},
 					{Type: &erutan.Component_NetworkBehaviour{NetworkBehaviour: ground.Component_NetworkBehaviourComponent}},
 				})
-		case *RenderSystem:
-			sys.Add(id, ground.Component_RenderComponent)
 		}
 	}
 }
@@ -294,8 +288,6 @@ func (m *Manager) AddHerb(position *protometry.VectorN) {
 					{Type: &erutan.Component_Render{Render: herb.Component_RenderComponent}},
 					{Type: &erutan.Component_NetworkBehaviour{NetworkBehaviour: herb.Component_NetworkBehaviourComponent}},
 				})
-		case *RenderSystem:
-			sys.Add(id, herb.Component_RenderComponent)
 		}
 	}
 }
@@ -359,8 +351,6 @@ func (m *Manager) AddHerbivorous(position *protometry.VectorN, scale *protometry
 					{Type: &erutan.Component_Speed{Speed: herbivorous.Component_SpeedComponent}},
 					{Type: &erutan.Component_NetworkBehaviour{NetworkBehaviour: herbivorous.Component_NetworkBehaviourComponent}},
 				})
-		case *RenderSystem:
-			sys.Add(id, herbivorous.Component_RenderComponent)
 		}
 	}
 }
