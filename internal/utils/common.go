@@ -8,9 +8,12 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -19,18 +22,24 @@ import (
 
 const timeFormat = "03:04:05 PM"
 
+// TODO: refactor this file
+
+// ClientLogf ...
 func ClientLogf(ts time.Time, format string, args ...interface{}) {
 	log.Printf("[%s] <<Client>>: "+format, append([]interface{}{ts.Format(timeFormat)}, args...)...)
 }
 
+// ServerLogf production logs
 func ServerLogf(ts time.Time, format string, args ...interface{}) {
 	log.Printf("[%s] <<Server>>: "+format, append([]interface{}{ts.Format(timeFormat)}, args...)...)
 }
 
+// MessageLog ... ?
 func MessageLog(ts time.Time, name, msg string) {
 	log.Printf("[%s] %s: %s", ts.Format(timeFormat), name, msg)
 }
 
+// DebugLogf debug logs
 func DebugLogf(format string, args ...interface{}) {
 	if !cfg.Global.DebugMode {
 		return
@@ -85,4 +94,13 @@ func RandFloats(min, max float64) float64 {
 
 func GetProtoTime() float64 {
 	return float64(ptypes.TimestampNow().Seconds)*math.Pow(10, 9) + float64(ptypes.TimestampNow().Nanos)
+}
+
+// Equals fails the test if exp is not equal to act.
+func Equals(tb testing.TB, exp, act interface{}) {
+	if !reflect.DeepEqual(exp, act) {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
+		tb.FailNow()
+	}
 }

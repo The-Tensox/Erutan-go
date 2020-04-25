@@ -19,8 +19,5 @@ vendor/
 *.crt
 *.key
 
-# VScode
-.vscode
-
-# Idea
-.idea
+# Dependencies
+vendor

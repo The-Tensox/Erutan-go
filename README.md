@@ -5,26 +5,15 @@
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/The-Tensox/erutan-go)
 [![Release](https://img.shields.io/github/release/The-Tensox/erutan-go.svg?style=flat-square)](https://github.com/The-Tensox/erutan-go/releases/latest)
 
+WIP - huge refactors to be expected, some ugly code at some places :).
+
 Trying to simulate evolution, synchronized over gRPC to clients that render a 3D visualisation.
 
 To be used with [the Unity client](https://github.com/The-Tensox/Erutan-unity)
 
 ## Usage
 
-```bash
-go get github.com/The-Tensox/Erutan-go
-cd $GOPATH/src/github.com/The-Tensox/Erutan-go
-make run
-```
-
-### With Docker
-
-```bash
-make dbuild
-make drun
-```
-
-## SSL/TLS configuration
+### SSL/TLS configuration
 
 ```bash
 # Edit your /etc/ssl/openssl.cnf add subjectAltName = IP:127.0.0.1 in [v3_ca] section
@@ -39,6 +28,23 @@ openssl genrsa -out server1.key 2048 &&
 openssl req -new -x509 -sha256 -key server1.key -out server1.crt -days 3650
 cp server1.crt $UNITY_PROJECT_PATH/Assets/StreamingAssets
 ```
+
+### Run
+
+```bash
+go get github.com/The-Tensox/Erutan-go
+cd $GOPATH/src/github.com/The-Tensox/Erutan-go
+make run
+```
+
+### With Docker
+
+```bash
+make dbuild
+make drun
+```
+
+You can tweak the [base configuration](config.yml.
 
 ## Tests
 
@@ -55,10 +61,6 @@ Some metrics are exposed.
 Install and run [Grafana](https://grafana.com) + [Prometheus](https://prometheus.io/docs/introduction/overview) to monitor erutan-go:
 
 ```bash
-docker run -d --rm --name prom -p 9090:9090 -v $(pwd)/mon/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
-docker run -d --rm --name graf -p 3000:3000 grafana/grafana
-
-# Or simply
 make dmon
 ```
 
@@ -81,6 +83,8 @@ Sorted in execution order:
 
 ### TODO
 
+- [ ] Throttle when client connect, if you throw tons of packet, client will crash
+- [ ] TESTS & BENCHMARKS
 - [x] Better visual debugging (octree & others)
 - [ ] More (useful) characteristics (no point in adding characteristics that doesn't help survival)
 - [ ] Environment-based evolution (stay near lakes, need more aquatic food, swim better idk, stay near desert, more resistant to sun ...)

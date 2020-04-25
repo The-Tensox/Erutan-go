@@ -3,8 +3,9 @@ syntax = "proto3";
 package erutan;
 
 import "google/protobuf/timestamp.proto";
-import "protobuf/protometry/vectorn.proto";
-import "protobuf/protometry/quaternionn.proto";
+import "protobuf/protometry/vector3.proto";
+import "protobuf/protometry/quaternion.proto";
+import "protobuf/protometry/volume.proto";
 option go_package = "github.com/The-Tensox/erutan";
 option csharp_namespace = "Erutan";
 
@@ -19,14 +20,6 @@ message Metadata {
     google.protobuf.Timestamp timestamp = 1;
 }
 
-// Mesh is used for rendering meshes
-message Mesh { // TODO: -> protometry ?
-	repeated protometry.VectorN vertices = 2;
-	repeated int32 tris = 3;
-	repeated protometry.VectorN normals = 4;
-	repeated protometry.VectorN uvs = 5;
-}
-
 // Data-oriented design : Entity Component System (ECS)
 message Component {
     oneof type {
@@ -39,10 +32,9 @@ message Component {
         NetworkBehaviourComponent network_behaviour = 7;
     }
     message SpaceComponent {
-        protometry.VectorN position = 1;
-        protometry.QuaternionN rotation = 2;
-        protometry.VectorN scale = 3;
-        Mesh mesh = 4; // TODO: maybe should be moved to render
+        protometry.Vector3 position = 1;
+        protometry.Quaternion rotation = 2;
+        protometry.Vector3 scale = 3;
     }
     message HealthComponent {
         double life = 1;
@@ -51,13 +43,17 @@ message Component {
         double move_speed = 1;
     }
     message TargetComponent {
-        protometry.VectorN target = 1;
+        protometry.Vector3 target = 1;
     }
     message RenderComponent {
-        float red = 1;
-        float green = 2;
-        float blue = 3;
-        float alpha = 4;
+        protometry.Mesh mesh = 1;
+        repeated  Color colors = 2;
+        message Color {
+            float red = 1;
+            float green = 2;
+            float blue = 3;
+            float alpha = 4;
+        }
     }
     // Acts as a sort of tag
     message BehaviourTypeComponent {
@@ -102,12 +98,12 @@ message Packet {
 
     message UpdatePositionPacket {
         uint64 entity_id = 1;
-        protometry.VectorN position = 2;
+        protometry.Vector3 position = 2;
     }
 
     message UpdateRotationPacket {
         uint64 entity_id = 1;
-        protometry.QuaternionN rotation = 2;
+        protometry.Quaternion rotation = 2;
     }
 
     message DestroyEntityPacket {

@@ -4,12 +4,15 @@ server:
   port: 50051
 
 logic:
-  time_scale: 1
+  time_scale: 10
   ground_size: 20
   initial_herbivorous: 5
-  initial_herbs: 5
+  initial_herbivorous_life: 40
+  initial_herbs: 20
 
 debug_mode: true
 ssl_cert: server1.crt
 ssl_key: server1.key
 metrics_port: 34555
+network_rate: 0.01 # lower = more packets
+frames_per_second: 0.0001 # 50 fps, lower = more fps, more systems update

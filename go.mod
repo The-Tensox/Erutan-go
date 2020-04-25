@@ -3,22 +3,23 @@ module github.com/The-Tensox/erutan
 go 1.14
 
 require (
-	github.com/The-Tensox/octree v0.0.0-20200402182846-1f7eeddf526a
-	github.com/The-Tensox/protometry v0.0.0-20200402182624-0a8c69d9271d
-	github.com/aquilax/go-perlin v0.0.0-20191229124216-0af9ce917c28 // indirect
-	github.com/golang/protobuf v1.3.5
+	github.com/The-Tensox/octree v0.0.0-20200419200003-737271d4488e
+	github.com/The-Tensox/protometry v0.0.0-20200419195901-e720a9241cc5
+	github.com/aquilax/go-perlin v0.0.0-20191229124216-0af9ce917c28
+	github.com/golang/protobuf v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/prometheus/client_golang v1.5.1
+	github.com/prometheus/procfs v0.0.11 // indirect
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
-	golang.org/x/sys v0.0.0-20200409092240-59c9f1ba88fa // indirect
+	golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f // indirect
 	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/genproto v0.0.0-20200410110633-0848e9f44c36 // indirect
+	google.golang.org/genproto v0.0.0-20200420144010-e5e8543f8aeb // indirect
 	google.golang.org/grpc v1.28.1
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 )
 
-replace (
-	github.com/The-Tensox/octree => ../octree
-	github.com/The-Tensox/protometry => ../protometry
-)
+#replace (
+#	github.com/The-Tensox/octree => ../octree
+#	github.com/The-Tensox/protometry => ../protometry
+#)

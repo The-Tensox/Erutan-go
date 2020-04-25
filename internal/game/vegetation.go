@@ -11,7 +11,6 @@ import (
 
 
 type AnyObject struct {
-	Id uint64
 	*erutan.Component_SpaceComponent
 	*erutan.Component_RenderComponent
 	*erutan.Component_BehaviourTypeComponent
@@ -19,12 +18,7 @@ type AnyObject struct {
 	*erutan.Component_NetworkBehaviourComponent
 }
 
-func (a AnyObject) ID() uint64 {
-	return a.Id
-}
-
 type eatableObject struct {
-	Id uint64
 	*erutan.Component_SpaceComponent
 }
 
@@ -33,22 +27,24 @@ type EatableSystem struct {
 }
 
 func NewEatableSystem() *EatableSystem {
-	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(*protometry.NewVector3Zero(),
+	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0,
 		cfg.Global.Logic.GroundSize*1000))}
 }
 
-func (e *EatableSystem) Add(id uint64,
+func (e *EatableSystem) Add(object octree.Object,
 	space *erutan.Component_SpaceComponent) {
-	eo := eatableObject{id, space}
-	o := octree.NewObjectCube(eo, eo.Position.Get(0), eo.Position.Get(1), eo.Position.Get(2), 1)
-	if !e.objects.Insert(*o) {
-		utils.DebugLogf("Failed to insert %v", o.ToString())
+	eo := &eatableObject{space}
+	object.Data = eo
+	if !e.objects.Insert(object) {
+		utils.DebugLogf("Failed to insert %v", object)
 	}
 }
 
 // Remove removes the Object from the System. This is what most Remove methods will look like
-func (e *EatableSystem) Remove(o octree.Object) {
-	e.objects.Remove(o)
+func (e *EatableSystem) Remove(object octree.Object) {
+	if !e.objects.Remove(object) {
+		utils.DebugLogf("Failed to remove")
+	}
 }
 
 func (e *EatableSystem) Update(dt float64) {
@@ -56,29 +52,40 @@ func (e *EatableSystem) Update(dt float64) {
 
 func (e *EatableSystem) Handle(event obs.Event) {
 	switch u := event.Value.(type) {
-	case obs.ObjectsCollided:
-		me := u.Me.Data.(collisionObject)
-		other := u.Other.Data.(collisionObject)
+	case obs.OnPhysicsUpdateResponse:
+		// No collision here
+		if u.Other == nil {
+			me := Find(e.objects, *u.Me)
+			if me == nil {
+				//utils.DebugLogf("Unable to find %v in system %T", u.Me.ID(), u)
+				return
+			}
+			asEo := me.Data.(*eatableObject)
+			*asEo.Position = u.NewPosition
+			// Need to reinsert in the octree
+			if !e.objects.Move(me, u.NewPosition.X, u.NewPosition.Y, u.NewPosition.Z) {
+				utils.DebugLogf("Failed to move %v", me)
+			}
+			// Over
+			return
+		}
+
+		me := u.Me.Data.(*collisionObject)
+		other := u.Other.Data.(*collisionObject)
 		// If an animal collided with me
 		// TODO: FIXME
 		if me.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			other.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			newSc := other.Component_SpaceComponent
-			p := protometry.RandomCirclePoint(*protometry.NewVectorN(cfg.Global.Logic.GroundSize, cfg.Global.Logic.GroundSize),
-				cfg.Global.Logic.GroundSize)
-			newSc.Position = &p
-			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.ObjectPhysicsUpdated{Object: u.Other, NewSc: *newSc, Dt: u.Dt}})
+			p := protometry.RandomCirclePoint(0, 0, cfg.Global.Logic.GroundSize)
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.OnPhysicsUpdateRequest{Object: *u.Other, NewPosition: p, Dt: u.Dt}})
 		}
 
 		if other.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			me.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			newSc := me.Component_SpaceComponent
-			p := protometry.RandomCirclePoint(*protometry.NewVectorN(cfg.Global.Logic.GroundSize, cfg.Global.Logic.GroundSize),
-				cfg.Global.Logic.GroundSize)
-			newSc.Position = &p
-			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.ObjectPhysicsUpdated{Object: u.Me, NewSc: *newSc, Dt: u.Dt}})
+			p := protometry.RandomCirclePoint(0, 0, cfg.Global.Logic.GroundSize)
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.OnPhysicsUpdateRequest{Object: *u.Me, NewPosition: p, Dt: u.Dt}})
 		}
 	}
 }

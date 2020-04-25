@@ -117,6 +117,14 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 	}
 
 	game.ManagerInstance.ClientsSettings.Store(tkn, clientSettings)
+	// Notify that this client just connected
+	cs, _ := game.ManagerInstance.ClientsSettings.Load(tkn)
+	game.ManagerInstance.Watch.NotifyAll(obs.Event{
+		Value: obs.OnClientConnection{
+			ClientToken: tkn,
+			Settings:    cs.(erutan.Packet_UpdateParameters),
+		},
+	})
 	go s.sendBroadcasts(srv, tkn)
 	for {
 		req, err := srv.Recv()
@@ -137,19 +145,12 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 	stream := s.openStream(tkn)
 	defer s.closeStream(tkn)
 
-	// Notify that this client just connected
-	cs, _ := game.ManagerInstance.ClientsSettings.Load(tkn)
-	game.ManagerInstance.Watch.NotifyAll(obs.Event{
-		Value: obs.ClientConnected{
-			ClientToken: tkn,
-			Settings:    cs.(erutan.Packet_UpdateParameters),
-		},
-	})
 	for {
 		select {
 		case <-srv.Context().Done():
 			return
 		case res := <-stream:
+			//utils.DebugLogf("Send")
 			//if x := res.GetUpdateEntity(); x != nil {
 			//	utils.DebugLogf("Sending %v", x.Components)
 			//}
