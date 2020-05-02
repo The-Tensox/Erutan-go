@@ -2,18 +2,15 @@ package utils
 
 import (
 	"fmt"
-	"github.com/The-Tensox/erutan/internal/cfg"
+	"github.com/The-Tensox/Erutan-go/internal/cfg"
 	"log"
 	"math"
 	"math/rand"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -94,13 +91,4 @@ func RandFloats(min, max float64) float64 {
 
 func GetProtoTime() float64 {
 	return float64(ptypes.TimestampNow().Seconds)*math.Pow(10, 9) + float64(ptypes.TimestampNow().Nanos)
-}
-
-// Equals fails the test if exp is not equal to act.
-func Equals(tb testing.TB, exp, act interface{}) {
-	if !reflect.DeepEqual(exp, act) {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
-		tb.FailNow()
-	}
 }

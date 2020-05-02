@@ -1,11 +1,11 @@
 package game
 
 import (
-	"github.com/The-Tensox/erutan/internal/cfg"
-	"github.com/The-Tensox/erutan/internal/mon"
-	"github.com/The-Tensox/erutan/internal/obs"
-	"github.com/The-Tensox/erutan/internal/utils"
-	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/Erutan-go/internal/cfg"
+	"github.com/The-Tensox/Erutan-go/internal/mon"
+	"github.com/The-Tensox/Erutan-go/internal/obs"
+	"github.com/The-Tensox/Erutan-go/internal/utils"
+	erutan "github.com/The-Tensox/Erutan-go/protobuf"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 )
@@ -22,15 +22,14 @@ type CollisionSystem struct {
 }
 
 func NewCollisionSystem() *CollisionSystem {
-	return &CollisionSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0,
-		cfg.Global.Logic.GroundSize*1000))}
+	return &CollisionSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0, cfg.Global.Logic.GroundSize*1000))}
 }
 
 func (c *CollisionSystem) Priority() int {
 	return 0
 }
 
-// Add adds an entity to the CollisionSystem. To be added, the entity has to have a basic and space component.
+// Add adds an object to the CollisionSystem. To be added, the object has to have a basic and space component.
 func (c *CollisionSystem) Add(object octree.Object,
 	space *erutan.Component_SpaceComponent,
 	behaviourType *erutan.Component_BehaviourTypeComponent,
@@ -44,15 +43,15 @@ func (c *CollisionSystem) Add(object octree.Object,
 	}
 }
 
-// Remove removes an entity from the CollisionSystem.
+// Remove removes an object from the CollisionSystem.
 func (c *CollisionSystem) Remove(object octree.Object) {
 	if !c.objects.Remove(object) {
-		utils.DebugLogf("Failed to remove")
+		utils.DebugLogf("Failed to remove %d, data: %T", object.ID(), object.Data)
 	}
 }
 
-// Update checks the entities for collision with eachother. Only Main entities are check for collision explicitly.
-// If one of the entities are solid, the SpaceComponent is adjusted so that the other entities don't pass through it.
+// Update checks the objects for collision with eachother. Only Main objects are check for collision explicitly.
+// If one of the objects are solid, the SpaceComponent is adjusted so that the other objects don't pass through it.
 func (c *CollisionSystem) Update(dt float64) {
 	// Gravity
 	return
@@ -62,7 +61,7 @@ func (c *CollisionSystem) Update(dt float64) {
 				if co.UseGravity {
 					newPosition := co.Position
 					newPosition.Y = newPosition.Y - 1*dt
-					ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.OnPhysicsUpdateRequest{Object: *o, NewPosition: *newPosition, Dt: dt}})
+					ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{Object: *o, NewPosition: *newPosition, Dt: dt}})
 					//utils.DebugLogf("%v %v", newPosition, o.Bounds.GetCenter())
 				}
 				//	// TODO: mass -> heavier fall faster ...
@@ -89,7 +88,7 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newPosition protom
 		//utils.DebugLogf("\ncheck collision of id:%v | pos: %v \nwanting to move to %v\nresult: %v collisions",
 		//	object.ID(), objectCastedToCollisionObject.Bounds.GetCenter(), newPosition, objectsCollided)
 		ManagerInstance.Watch.NotifyAll(obs.Event{
-			Value: obs.OnPhysicsUpdateResponse{
+			Value: obs.PhysicsUpdateResponse{
 				Me:          objectCastedToCollisionObject,
 				NewPosition: newPosition,
 				Other:       nil, // No collision here !
@@ -142,16 +141,16 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newPosition protom
 			//		Blue:  1,
 			//		Alpha: 0.7,
 			//	})
-			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.OnPhysicsUpdateResponse{Me: &o, Other: objectCastedToCollisionObject, Dt: dt}})
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateResponse{Me: &o, Other: objectCastedToCollisionObject, Dt: dt}})
 		}
 	}
 }
 
 func (c *CollisionSystem) Handle(event obs.Event) {
 	switch e := event.Value.(type) {
-	case obs.OnPhysicsUpdateRequest:
+	case obs.PhysicsUpdateRequest:
 		c.PhysicsUpdate(e.Object, e.NewPosition, e.Dt)
-	case obs.OnPhysicsUpdateResponse:
+	case obs.PhysicsUpdateResponse:
 		// No collision here
 		if e.Other == nil {
 			me := Find(c.objects, *e.Me)

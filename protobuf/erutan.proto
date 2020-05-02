@@ -20,7 +20,7 @@ message Metadata {
     google.protobuf.Timestamp timestamp = 1;
 }
 
-// Data-oriented design : Entity Component System (ECS)
+// Data-oriented design : Object (=Object here) Component System (ECS)
 message Component {
     oneof type {
         SpaceComponent space = 1;
@@ -62,6 +62,7 @@ message Component {
             ANY = 0;
             ANIMAL = 1;
             VEGETATION = 2;
+            PLAYER = 3;
         }
     }
     message PhysicsComponent {
@@ -70,6 +71,7 @@ message Component {
     // Some information about how this object should be synchronized
     message NetworkBehaviourComponent {
         Tag tag = 1;
+        string owner_token = 2; // Useful to define who [is allowed] to control x object ...
         enum Tag { // Some kind of filter, should an object be considered debug thing or normal or hack mode: show only clients :p
             ALL = 0;
             DEBUG = 1;
@@ -79,35 +81,42 @@ message Component {
 
 message Packet {
     Metadata metadata = 1;
-    // TODO: entity -> object ? or maybe not
+    // TODO: fix name
     oneof type {
-        // General physical entitys
-        UpdateEntityPacket update_entity = 2;
+        // General physical objects
+        UpdateObjectPacket update_object = 2;
         UpdatePositionPacket update_position = 3;
         UpdateRotationPacket update_rotation = 4;
-        DestroyEntityPacket destroy_entity = 5;
+        DestroyObjectPacket destroy_object = 5;
 
         // Server general
         UpdateParametersPacket update_parameters = 6;
+        ArmageddonPacket armageddon = 7;
+        AuthenticationPacket authentication = 8;
+
+        // Player
+        CreatePlayerPacket create_player = 9;
+        UpdateSpaceRequestPacket update_space_request = 10;
     }
 
-    message UpdateEntityPacket {
-        uint64 entity_id = 1;
-        repeated Component components = 2; 
+    message UpdateObjectPacket {
+        uint64 object_id = 1;
+        repeated Component components = 2;
     }
 
     message UpdatePositionPacket {
-        uint64 entity_id = 1;
+        uint64 object_id = 1;
         protometry.Vector3 position = 2;
     }
 
     message UpdateRotationPacket {
-        uint64 entity_id = 1;
+        uint64 object_id = 1;
         protometry.Quaternion rotation = 2;
     }
 
-    message DestroyEntityPacket {
-        uint64 entity_id = 1;
+    message DestroyObjectPacket {
+        uint64 object_id = 1;
+        protometry.Box region = 2; // It's faster to search by region
     }
 
     message UpdateParametersPacket {
@@ -116,9 +125,28 @@ message Packet {
             oneof type {
                 double time_scale = 1;
                 bool debug = 2; // Whether or not synchronizing debug stuff
+                protometry.Box culling_area = 3;
                 // TODO: client area that he wants to be synchronized on, culling-like (obvsly to improve client-side perf)
-                // TODO: maybe should move protometry.Box into protobuf then
             }
         }
+    }
+
+    message ArmageddonPacket {
+    }
+
+    message AuthenticationPacket {
+        string client_token = 1;
+    }
+
+    message CreatePlayerPacket {
+        uint64 object_id = 1;
+        repeated Component components = 2;
+    }
+
+    // Client request a space update of an object, server check physics etc.
+    message UpdateSpaceRequestPacket {
+        uint64 object_id = 1;
+        Component.SpaceComponent actualSpace = 2;
+        Component.SpaceComponent newSpace = 3;
     }
 }

@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/The-Tensox/erutan/internal/cfg"
-	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/Erutan-go/internal/cfg"
+	erutan "github.com/The-Tensox/Erutan-go/protobuf"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

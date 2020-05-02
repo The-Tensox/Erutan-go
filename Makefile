@@ -1,4 +1,4 @@
-UNITY_PROJECT_PATH ?= /home/louis/Documents/unity/Erutan
+UNITY_PROJECT_PATH ?= $(HOME)/Documents/unity/Erutan-unity
 NS ?= erutan
 VERSION ?= 1.0.0
 PORTS = -p 34555:34555 -p 50051:50051

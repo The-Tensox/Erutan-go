@@ -2,20 +2,20 @@ package ecs
 
 import "github.com/The-Tensox/octree"
 
-// A System implements logic for processing entities possessing components of
+// A System implements logic for processing objects possessing components of
 // the same aspects as the system. A System should iterate over its Entities on
 // `Update`, in any way suitable for the current implementation.
 //
-// By convention, systems provide an Add method for adding entities and their
+// By convention, systems provide an Add method for adding objects and their
 // associated components to the system; e.g.
 //
-//    Add(basic *ecs.BasicEntity, collision *CollisionComponent, space *SpaceComponent)
+//    Add(basic *ecs.BasicObject, collision *CollisionComponent, space *SpaceComponent)
 type System interface {
 	// Update updates the system. It is invoked by the engine once every frame,
 	// with dt being the duration since the previous update.
 	Update(dt float64)
 
-	// Remove removes the given entity from the system.
+	// Remove removes the given object from the system.
 	Remove(o octree.Object)
 }
 
@@ -23,10 +23,10 @@ type System interface {
 type SystemAddByInterfacer interface {
 	System
 
-	// AddByInterface allows you to automatically add entities based on the
-	// interfaces that the entity implements. It should add the entity passed
+	// AddByInterface allows you to automatically add objects based on the
+	// interfaces that the object implements. It should add the object passed
 	// as o to the system after casting it to the correct interface.
-	AddByInterface(o Identifier)
+	AddByInterface(o octree.Identifier)
 }
 
 // Prioritizer specifies the priority of systems.

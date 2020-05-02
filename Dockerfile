@@ -28,6 +28,6 @@ EXPOSE 50051
 #EXPOSE 34555/tcp
 #
 #WORKDIR /root/
-#COPY --from=builder /go/src/github.com/The-Tensox/erutan/app .
+#COPY --from=builder /go/src/github.com/The-Tensox/Erutan-go/app .
 #
 #ENTRYPOINT ["./app"]

@@ -4,15 +4,26 @@ server:
   port: 50051
 
 logic:
-  time_scale: 10
-  ground_size: 20
-  initial_herbivorous: 5
-  initial_herbivorous_life: 40
-  initial_herbs: 20
+  time_scale: 1
+  ground_size: 50
+  herbivorous:
+    reproduction_threshold: 80
+    reproduction_life_loss: 60
+    eat_life_gain: 50
+    life_loss_rate: 500
+    quantity: 0
+    life: 50
+  initial_herbs: 0
+  player:
+    spawn:
+      X: 0
+      Y: 100
+      Z: 0
+    culling: 10
 
 debug_mode: true
 ssl_cert: server1.crt
 ssl_key: server1.key
 metrics_port: 34555
-network_rate: 0.01 # lower = more packets
+network_rate: 1 # lower = more packets
 frames_per_second: 0.0001 # 50 fps, lower = more fps, more systems update

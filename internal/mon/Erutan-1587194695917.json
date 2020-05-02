@@ -33,7 +33,7 @@
         "y": 0
       },
       "hiddenSeries": false,
-      "id": 16,
+      "id": 20,
       "legend": {
         "avg": false,
         "current": false,
@@ -59,23 +59,17 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(collision[5m])",
+          "expr": "rate(observer_event[5m])",
           "interval": "",
-          "legendFormat": "Collisions",
+          "legendFormat": "Events",
           "refId": "A"
-        },
-        {
-          "expr": "physical_object",
-          "interval": "",
-          "legendFormat": "Physical objets",
-          "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Physics",
+      "title": "Observer",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -154,28 +148,34 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(eat[5m])",
+          "expr": "avg(herbivorous_eat)",
           "interval": "",
           "legendFormat": "Eat",
           "refId": "A"
         },
         {
-          "expr": "speed",
+          "expr": "herbivorous_speed",
           "interval": "",
           "legendFormat": "Speed",
           "refId": "B"
         },
         {
-          "expr": "life",
+          "expr": "herbivorous_life",
           "interval": "",
           "legendFormat": "Life",
           "refId": "C"
         },
         {
-          "expr": "rate(reproduction[5m])",
+          "expr": "avg(herbivorous_reproduction)",
           "interval": "",
           "legendFormat": "Reproduction",
           "refId": "D"
+        },
+        {
+          "expr": "herbivorous_volume",
+          "interval": "",
+          "legendFormat": "Volume",
+          "refId": "E"
         }
       ],
       "thresholds": [],
@@ -234,7 +234,7 @@
         "y": 8
       },
       "hiddenSeries": false,
-      "id": 4,
+      "id": 18,
       "legend": {
         "avg": false,
         "current": false,
@@ -260,29 +260,17 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(network_action_ignore[5m])",
+          "expr": "rate(physics_collision[5m])",
           "interval": "",
-          "legendFormat": "{{job}} - ignore",
+          "legendFormat": "Collisions",
           "refId": "A"
-        },
-        {
-          "expr": "rate(network_action_update[5m])",
-          "interval": "",
-          "legendFormat": "{{job}} - update",
-          "refId": "B"
-        },
-        {
-          "expr": "rate(network_action_destroy[5m])",
-          "interval": "",
-          "legendFormat": "{{job}} - destroy",
-          "refId": "C"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Packet network updates",
+      "title": "Collisions",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -422,7 +410,7 @@
         "y": 16
       },
       "hiddenSeries": false,
-      "id": 8,
+      "id": 16,
       "legend": {
         "avg": false,
         "current": false,
@@ -448,9 +436,9 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "go_memstats_alloc_bytes{job=\"erutan\"}",
+          "expr": "physics_object",
           "interval": "",
-          "legendFormat": "{{job}} - alloc_bytes",
+          "legendFormat": "Objets",
           "refId": "B"
         }
       ],
@@ -458,7 +446,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "RAM",
+      "title": "Objects",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -536,14 +524,18 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(grpc_server_msg_sent_total[5m])",
+          "expr": "avg(grpc_server_msg_sent_total)",
+          "format": "time_series",
           "hide": false,
+          "instant": false,
           "interval": "",
-          "legendFormat": "{{job}} - server_msg_sent_total",
+          "intervalFactor": 1,
+          "legendFormat": "server_msg_sent_total",
           "refId": "B"
         },
         {
-          "expr": "rate(grpc_server_msg_received_total[5m])",
+          "expr": "avg(grpc_server_msg_received_total)",
+          "format": "time_series",
           "interval": "",
           "legendFormat": "server_msg_received_total",
           "refId": "A"
@@ -592,7 +584,7 @@
     },
     {
       "aliasColors": {},
-      "bars": true,
+      "bars": false,
       "dashLength": 10,
       "dashes": false,
       "datasource": null,
@@ -605,7 +597,7 @@
         "y": 24
       },
       "hiddenSeries": false,
-      "id": 12,
+      "id": 8,
       "legend": {
         "avg": false,
         "current": false,
@@ -615,7 +607,7 @@
         "total": false,
         "values": false
       },
-      "lines": false,
+      "lines": true,
       "linewidth": 1,
       "nullPointMode": "null",
       "options": {
@@ -631,17 +623,17 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(net_conntrack_dialer_conn_established_total[5m])",
+          "expr": "go_memstats_alloc_bytes{job=\"erutan\"}",
           "interval": "",
-          "legendFormat": "{{job}} - Client connections",
-          "refId": "A"
+          "legendFormat": "{{job}} - alloc_bytes",
+          "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Clients",
+      "title": "RAM",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -687,7 +679,7 @@
     "list": []
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {
@@ -710,5 +702,5 @@
   "variables": {
     "list": []
   },
-  "version": 7
+  "version": 10
 }

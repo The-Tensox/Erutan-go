@@ -3,77 +3,84 @@ package mon
 import "github.com/prometheus/client_golang/prometheus"
 
 func init() {
-	prometheus.MustRegister(NetworkActionIgnoreCounter)
-	prometheus.MustRegister(NetworkActionUpdateCounter)
-	prometheus.MustRegister(NetworkActionDestroyCounter)
+	prometheus.MustRegister(NetworkAddCounter)
+	prometheus.MustRegister(NetworkRemoveCounter)
 	prometheus.MustRegister(LifeGauge)
 	prometheus.MustRegister(SpeedGauge)
 	prometheus.MustRegister(CollisionCounter)
 	prometheus.MustRegister(PhysicalObjectsGauge)
 	prometheus.MustRegister(EatCounter)
 	prometheus.MustRegister(ReproductionCounter)
+	prometheus.MustRegister(VolumeGauge)
+	prometheus.MustRegister(ObserverEventCounter)
 }
 
 var (
 	// Physics
 	CollisionCounter = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "collision",
+			Name: "physics_collision",
 			Help: "collision",
 		},
 	)
 	PhysicalObjectsGauge = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "physical_object",
-			Help: "physical_object",
+			Name: "physics_object",
+			Help: "physics_object",
 		},
 	)
 
 	// Living being
 	LifeGauge = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "life",
-			Help: "life",
+			Name: "herbivorous_life",
+			Help: "herbivorous_life",
 		},
 	)
 	SpeedGauge = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "speed",
-			Help: "speed",
+			Name: "herbivorous_speed",
+			Help: "herbivorous_speed",
 		},
 	)
 	EatCounter = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "eat",
-			Help: "eat",
+			Name: "herbivorous_eat",
+			Help: "herbivorous_eat",
 		},
 	)
 	ReproductionCounter = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "reproduction",
-			Help: "reproduction",
+			Name: "herbivorous_reproduction",
+			Help: "herbivorous_reproduction",
+		},
+	)
+	VolumeGauge = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "herbivorous_volume",
+			Help: "herbivorous_volume",
 		},
 	)
 
 	// Network high-level
-	NetworkActionIgnoreCounter = prometheus.NewCounter(
+	NetworkAddCounter = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "network_action_ignore",
-			Help: "Network action ignore",
+			Name: "network_add",
+			Help: "network_add",
+		},
+	)
+	NetworkRemoveCounter = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "network_remove",
+			Help: "network_remove",
 		},
 	)
 
-	NetworkActionUpdateCounter = prometheus.NewCounter(
+	// Observer
+	ObserverEventCounter = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "network_action_update",
-			Help: "Network action update",
-		},
-	)
-
-	NetworkActionDestroyCounter = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "network_action_destroy",
-			Help: "Network action destroy",
+			Name: "observer_event",
+			Help: "observer_event",
 		},
 	)
 )

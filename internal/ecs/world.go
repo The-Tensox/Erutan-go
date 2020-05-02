@@ -24,7 +24,7 @@ func (w *World) AddSystem(system System) {
 }
 
 // AddSystemInterface adds a system to the world, but also adds a filter that allows
-// automatic adding of entities that match the provided in interface, and excludes any
+// automatic adding of objects that match the provided in interface, and excludes any
 // that match the provided ex interface, even if they also match in. in and ex must be
 // pointers to the interface or else this panics.
 func (w *World) AddSystemInterface(sys SystemAddByInterfacer, in interface{}, ex interface{}) {
@@ -47,10 +47,10 @@ func (w *World) AddSystemInterface(sys SystemAddByInterfacer, in interface{}, ex
 	w.sysEx[reflect.TypeOf(sys)] = reflect.TypeOf(ex).Elem()
 }
 
-// AddEntity adds the entity to all systems that have been added via
-// AddSystemInterface. If the system was added via AddSystem the entity will not be
+// AddObject adds the object to all systems that have been added via
+// AddSystemInterface. If the system was added via AddSystem the object will not be
 // added to it.
-func (w *World) AddEntity(e Identifier) {
+func (w *World) AddObject(e octree.Identifier) {
 	if w.sysIn == nil {
 		w.sysIn = make(map[reflect.Type]reflect.Type)
 	}

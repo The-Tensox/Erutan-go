@@ -1,16 +1,17 @@
 package game
 
 import (
-	"github.com/The-Tensox/erutan/internal/cfg"
-	"github.com/The-Tensox/erutan/internal/obs"
-	"github.com/The-Tensox/erutan/internal/utils"
-	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/Erutan-go/internal/cfg"
+	"github.com/The-Tensox/Erutan-go/internal/obs"
+	"github.com/The-Tensox/Erutan-go/internal/utils"
+	erutan "github.com/The-Tensox/Erutan-go/protobuf"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 )
 
-
-type AnyObject struct {
+// TODO: I think there is some changes to this design to be done, not sure it's clean to mix objects, objects ...
+// TODO: or maybe it's ok idk
+type BasicObject struct {
 	*erutan.Component_SpaceComponent
 	*erutan.Component_RenderComponent
 	*erutan.Component_BehaviourTypeComponent
@@ -27,8 +28,7 @@ type EatableSystem struct {
 }
 
 func NewEatableSystem() *EatableSystem {
-	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0,
-		cfg.Global.Logic.GroundSize*1000))}
+	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0, cfg.Global.Logic.GroundSize*1000))}
 }
 
 func (e *EatableSystem) Add(object octree.Object,
@@ -43,7 +43,7 @@ func (e *EatableSystem) Add(object octree.Object,
 // Remove removes the Object from the System. This is what most Remove methods will look like
 func (e *EatableSystem) Remove(object octree.Object) {
 	if !e.objects.Remove(object) {
-		utils.DebugLogf("Failed to remove")
+		utils.DebugLogf("Failed to remove %d, data: %T", object.ID(), object.Data)
 	}
 }
 
@@ -52,7 +52,7 @@ func (e *EatableSystem) Update(dt float64) {
 
 func (e *EatableSystem) Handle(event obs.Event) {
 	switch u := event.Value.(type) {
-	case obs.OnPhysicsUpdateResponse:
+	case obs.PhysicsUpdateResponse:
 		// No collision here
 		if u.Other == nil {
 			me := Find(e.objects, *u.Me)
@@ -77,15 +77,15 @@ func (e *EatableSystem) Handle(event obs.Event) {
 		if me.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			other.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			p := protometry.RandomCirclePoint(0, 0, cfg.Global.Logic.GroundSize)
-			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.OnPhysicsUpdateRequest{Object: *u.Other, NewPosition: p, Dt: u.Dt}})
+			p := protometry.RandomCirclePoint(0, 0, cfg.Global.Logic.GroundSize/2)
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{Object: *u.Other, NewPosition: p, Dt: u.Dt}})
 		}
 
 		if other.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
 			me.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
 			// Teleport somewhere else
-			p := protometry.RandomCirclePoint(0, 0, cfg.Global.Logic.GroundSize)
-			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.OnPhysicsUpdateRequest{Object: *u.Me, NewPosition: p, Dt: u.Dt}})
+			p := protometry.RandomCirclePoint(0, 0, cfg.Global.Logic.GroundSize/2)
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{Object: *u.Me, NewPosition: p, Dt: u.Dt}})
 		}
 	}
 }

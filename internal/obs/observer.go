@@ -1,7 +1,8 @@
 package obs
 
 import (
-	erutan "github.com/The-Tensox/erutan/protobuf"
+	"github.com/The-Tensox/Erutan-go/internal/mon"
+	erutan "github.com/The-Tensox/Erutan-go/protobuf"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
 )
@@ -22,7 +23,6 @@ type (
 	// Watch implements Observable
 	Watch struct {
 		observers []Observer
-		//sync.RWMutex
 	}
 )
 
@@ -33,16 +33,10 @@ func NewWatch() *Watch {
 
 
 func (w *Watch) Register(observer Observer) {
-	//w.Lock()
-	//defer w.Unlock()
-	//utils.DebugLogf("waiting")
-
 	w.observers = append(w.observers, observer)
 }
 
 func (w *Watch) Deregister(observer Observer) {
-	//w.Lock()
-	//defer w.Unlock()
 	for i, o := range w.observers {
 		if o == observer {
 			w.observers = append(w.observers[:i], w.observers[i+1:]...)
@@ -51,35 +45,34 @@ func (w *Watch) Deregister(observer Observer) {
 }
 
 func (w *Watch) NotifyAll(event Event) {
-	//utils.DebugLogf("lock")
-	//w.RLock()
-	//defer w.RUnlock()
-	//utils.DebugLogf("zaz %T %v", event.Value, event.Value)
-
+	mon.ObserverEventCounter.Inc()
 	for _, o := range w.observers {
 		o.Handle(event)
 	}
 }
 
 
-// Events !!
 type (
 	Event struct {Value interface{}}
 
-	OnClientSettingsUpdate struct {
+	// ClientSettingsUpdate notify of a client updating its settings
+	ClientSettingsUpdate struct {
 		ClientToken string
 		Settings    erutan.Packet_UpdateParameters
 	}
-	OnClientConnection struct {
+	ClientConnection struct {
 		ClientToken string
 		Settings    erutan.Packet_UpdateParameters
 	}
-	OnPhysicsUpdateRequest struct {
+	ClientDisconnection struct {
+		ClientToken string
+	}
+	PhysicsUpdateRequest struct {
 		Object octree.Object
 		NewPosition  protometry.Vector3
 		Dt     float64
 	}
-	OnPhysicsUpdateResponse struct {
+	PhysicsUpdateResponse struct {
 		Me  *octree.Object
 		NewPosition  protometry.Vector3
 		// Other is nil if there is no collision

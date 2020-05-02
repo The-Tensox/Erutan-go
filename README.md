@@ -77,7 +77,7 @@ Composed of physical data (position, rotation, scale, shape, collision ...), log
 Sorted in execution order:
 
 1. Collision: handle physics (what to do when a movement has been requested, how to handle collisions, gravity ...)
-2. Network: for every entity, simply synchronize every added components over network.
+2. Network: for every object, simply synchronize every added components over network.
 3. Logic: Herbivorous, Eatable, Vegetation (will probably change name over time): some temporary hard-coded logic
 
 

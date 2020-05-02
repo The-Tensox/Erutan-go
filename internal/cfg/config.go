@@ -2,6 +2,7 @@ package cfg
 
 import (
 	"fmt"
+	"github.com/The-Tensox/protometry"
 	"github.com/kelseyhightower/envconfig"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -24,9 +25,21 @@ type Config struct {
 		// GroundSize ...
 		GroundSize float64 `yaml:"ground_size"`
 
-		InitialHerbivorous int `yaml:"initial_herbivorous"`
-		InitialHerbivorousLife float64 `yaml:"initial_herbivorous_life"`
+		Herbivorous struct {
+			ReproductionThreshold float64 `yaml:"reproduction_threshold"`
+			ReproductionLifeLoss float64 `yaml:"reproduction_life_loss"`
+			EatLifeGain float64 `yaml:"eat_life_gain"`
+			LifeLossRate float64 `yaml:"life_loss_rate"`
+			Quantity int `yaml:"quantity"`
+			Life float64 `yaml:"life"`
+		} `yaml:"herbivorous"`
+
 		InitialHerbs       int `yaml:"initial_herbs"`
+
+		Player struct {
+			Spawn protometry.Vector3 `yaml:"spawn"`
+			Culling float64 `yaml:"culling"`
+		} `yaml:"player"`
 	} `yaml:"logic"`
 
 	// DebugMode name is self explanatory ...
