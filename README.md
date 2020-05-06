@@ -18,7 +18,6 @@ To be used with [the Unity client](https://github.com/The-Tensox/Erutan-unity)
 ```bash
 # Edit your /etc/ssl/openssl.cnf add subjectAltName = IP:127.0.0.1 in [v3_ca] section
 
-```bash
 # Maybe it will do the trick but not tested :D
 sed -i -e 's/#subjectAltName = IP:127.0.0.1/subjectAltName = IP:127.0.0.1/g' /etc/ssl/openssl.cnf
 ```
@@ -64,9 +63,9 @@ Install and run [Grafana](https://grafana.com) + [Prometheus](https://prometheus
 make dmon
 ```
 
-## ECS
+## Design
 
-### Entities
+The Entity(well you will usually find them named "object" instead, but same principle) Component System(ECS) design is used.
 
 ### Components
 
@@ -80,14 +79,20 @@ Sorted in execution order:
 2. Network: for every object, simply synchronize every added components over network.
 3. Logic: Herbivorous, Eatable, Vegetation (will probably change name over time): some temporary hard-coded logic
 
+### Lifecycle
 
-### TODO
+All out-going messages are handled asynchronously: throw in the channel then it will be sent to the client.
 
-- [ ] Throttle when client connect, if you throw tons of packet, client will crash
-- [ ] TESTS & BENCHMARKS
-- [x] Better visual debugging (octree & others)
-- [ ] More (useful) characteristics (no point in adding characteristics that doesn't help survival)
-- [ ] Environment-based evolution (stay near lakes, need more aquatic food, swim better idk, stay near desert, more resistant to sun ...)
-- [ ] Other languages libraries (Python, JS ...) allowing either other front-ends either building bots, client-side heavy computation stuff ...
-- [x] Octree
-- [ ] API for sending commands (/spawn thing, /kick him, /rain ...)
+#### Main loop
+
+1. Process incoming client packets (synchronously)
+2. Update each system (by their order of priority)
+
+#### Physics
+
+1. Compute physics and notify of new state
+2. All observers update their local state accordingly
+
+## TODO
+
+See issues, feel free to drop any things

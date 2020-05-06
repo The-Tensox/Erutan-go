@@ -95,7 +95,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 
-	close(game.ManagerInstance.Broadcast)
+	//close(game.ManagerInstance.Broadcast)
 	utils.ServerLogf(time.Now(), "shutting down")
 
 	srv.GracefulStop()
@@ -117,7 +117,7 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 				},
 				{
 					Type: &erutan.Packet_UpdateParametersPacket_Parameter_CullingArea{
-						CullingArea: protometry.NewBoxOfSize(pos.X, pos.Y, pos.Z, cfg.Global.Logic.Player.Culling),
+						CullingArea: protometry.NewBoxOfSize(pos[0], pos[1], pos[2], cfg.Global.Logic.Player.Culling),
 					},
 				},
 			},
@@ -127,13 +127,16 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 	game.ManagerInstance.ClientsSettings.Store(tkn, clientSettings)
 	// Notify that this client just connected
 	cs, _ := game.ManagerInstance.ClientsSettings.Load(tkn)
+
+	streamOpened := make(chan bool)
+	go s.clientStreamHandler(srv, tkn, streamOpened)
+	<-streamOpened // Wait that the stream has been opened to notify a client connection
 	game.ManagerInstance.Watch.NotifyAll(obs.Event{
 		Value: obs.ClientConnection{
 			ClientToken: tkn,
 			Settings:    cs.(erutan.Packet_UpdateParameters),
 		},
 	})
-	go s.sendBroadcasts(srv, tkn)
 	for {
 		req, err := srv.Recv()
 		if err == io.EOF {
@@ -142,17 +145,18 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 			return err
 		}
 		// Distribute to the game manager to handle logic
-		game.ManagerInstance.OnClientPacket(tkn, *req)
+		game.ManagerInstance.ClientsIn<-*erutan.NewClientPacket(tkn, *req)
+		//game.ManagerInstance.OnClientPacket(tkn, *req)
 	}
 
 	<-srv.Context().Done()
 	return srv.Context().Err()
 }
 
-func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
+func (s *Server) clientStreamHandler(srv erutan.Erutan_StreamServer, tkn string, streamOpened chan bool) {
 	stream := s.openStream(tkn)
 	defer s.closeStream(tkn)
-
+	streamOpened<-true
 	// Tell to this client what is its token
 	stream <- erutan.Packet{
 		Metadata: &erutan.Metadata{Timestamp: ptypes.TimestampNow()},
@@ -168,14 +172,13 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 		case <-srv.Context().Done():
 			return
 		case res := <-stream:
-			//utils.DebugLogf("Send")
+			//utils.DebugLogf("sending %T", res.Type)
 			//if x := res.GetUpdateObject(); x != nil {
 			//	utils.DebugLogf("Sending %v", x.Components)
 			//}
-			//utils.DebugLogf("Send")
-			//if x := res.GetCreatePlayer(); x != nil {
-			//	utils.DebugLogf("Sending %v", x.ObjectId)
-			//}
+			if x := res.GetCreatePlayer(); x != nil {
+				utils.DebugLogf("Sending %v", x.ObjectId)
+			}
 			if s, ok := status.FromError(srv.Send(&res)); ok {
 				switch s.Code() {
 				case codes.OK:
@@ -193,40 +196,43 @@ func (s *Server) sendBroadcasts(srv erutan.Erutan_StreamServer, tkn string) {
 }
 
 func (s *Server) broadcast(ctx context.Context) {
-	for res := range game.ManagerInstance.Broadcast {
-		for _, stream := range game.ManagerInstance.ClientsOut {
-			//if x := res.GetCreatePlayer(); x != nil {
-			//	utils.DebugLogf("Sending %v", x.ObjectId)
-			//}
-			select {
-			case stream <- res:
-				// noop
-			default:
-				utils.ServerLogf(time.Now(), "client stream full, dropping message")
+	for res := range game.ManagerInstance.BroadcastOut {
+		//utils.DebugLogf("Broadcasting %T", res.Type)
+		game.ManagerInstance.ClientsOut.Range(func(key, value interface{}) bool {
+			if channel, ok := value.(chan erutan.Packet); ok {
+				select {
+				case channel <- res:
+					// noop
+				default:
+					utils.ServerLogf(time.Now(), "client stream full, dropping message")
+				}
 			}
-		}
+			return true
+		})
 	}
 }
 
 // Initialize the communication of this client
 func (s *Server) openStream(tkn string) (stream chan erutan.Packet) {
 	out := make(chan erutan.Packet, 10000000) // RIP COMPUTER
-	game.ManagerInstance.ClientsMu.Lock()
-	defer game.ManagerInstance.ClientsMu.Unlock()
-
-	game.ManagerInstance.ClientsOut[tkn] = out
-
+	utils.DebugLogf("blocked")
+	//game.ManagerInstance.ClientsMu.Lock()
+	//defer game.ManagerInstance.ClientsMu.Unlock()
+	utils.DebugLogf("unblocked")
+	game.ManagerInstance.ClientsOut.Store(tkn, out)
 	utils.ServerLogf(time.Now(), "Opened stream for client [%s]", tkn)
 	// Return the channel
 	return out
 }
 
 func (s *Server) closeStream(tkn string) {
-	game.ManagerInstance.ClientsMu.Lock()
-	defer game.ManagerInstance.ClientsMu.Unlock()
-	if stream, ok := game.ManagerInstance.ClientsOut[tkn]; ok {
-		delete(game.ManagerInstance.ClientsOut, tkn)
-		close(stream)
+	//game.ManagerInstance.ClientsMu.Lock()
+	//defer game.ManagerInstance.ClientsMu.Unlock()
+	if inter, ok := game.ManagerInstance.ClientsOut.Load(tkn); ok {
+		if channel, ok2 := inter.(chan erutan.Packet); ok2 {
+			game.ManagerInstance.ClientsOut.Delete(tkn)
+			close(channel)
+		}
 	}
 	game.ManagerInstance.ClientsSettings.Delete(tkn)
 	game.ManagerInstance.Watch.NotifyAll(obs.Event{ // TODO: check if that doesn't break anything since running in another goroutine

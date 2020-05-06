@@ -65,8 +65,24 @@ message Component {
             PLAYER = 3;
         }
     }
+    // Control of an object's position through physics simulation
     message PhysicsComponent {
+        // Controls whether gravity affects this object
         bool use_gravity = 1;
+        // Controls whether physics affects the object
+        bool is_kinematic = 2;
+        // The mass of the object
+        double mass = 3;
+        // The  velocity vector of the object. It represents the rate of change of object position
+        protometry.Vector3 velocity = 4;
+        // The drag of the object.
+        // Drag can be used to slow down an object. The higher the drag the more the object slows down
+        double drag = 5;
+        // The angular velocity vector of the object measured in radians per second
+        protometry.Vector3 angular_velocity = 6;
+        // The angular drag of the object.
+        // Angular drag can be used to slow down the rotation of an object
+        double angular_drag = 7;
     }
     // Some information about how this object should be synchronized
     message NetworkBehaviourComponent {
@@ -81,7 +97,6 @@ message Component {
 
 message Packet {
     Metadata metadata = 1;
-    // TODO: fix name
     oneof type {
         // General physical objects
         UpdateObjectPacket update_object = 2;
@@ -126,7 +141,6 @@ message Packet {
                 double time_scale = 1;
                 bool debug = 2; // Whether or not synchronizing debug stuff
                 protometry.Box culling_area = 3;
-                // TODO: client area that he wants to be synchronized on, culling-like (obvsly to improve client-side perf)
             }
         }
     }

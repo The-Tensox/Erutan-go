@@ -6,8 +6,9 @@ import (
 	"github.com/The-Tensox/Erutan-go/internal/obs"
 	"github.com/The-Tensox/Erutan-go/internal/utils"
 	erutan "github.com/The-Tensox/Erutan-go/protobuf"
+	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
-	"github.com/aquilax/go-perlin"
+	"github.com/golang/protobuf/ptypes"
 	"math"
 	"sync"
 )
@@ -24,14 +25,16 @@ type Manager struct {
 	// World is the structure that handle all Systems in the Object Component System design
 	World ecs.World
 
-	ClientsMu sync.RWMutex
+	// ClientsIn handle incoming messages, doesn't need to be a map since when we receive we know it's a connected client
+	ClientsIn chan erutan.ClientPacket
+	//ClientsMu sync.RWMutex
 	// ClientsOut is a map that send packets to clients (map[string]chan Packet)
-	ClientsOut map[string]chan erutan.Packet
+	ClientsOut sync.Map
 	// Map a client to settings (map[string]ClientSettings)
 	ClientsSettings sync.Map
 
-	// Broadcast is a channel to send packets to every clients
-	Broadcast chan erutan.Packet
+	// BroadcastOut is a channel to send packets to every clients
+	BroadcastOut chan erutan.Packet
 
 	Watch obs.Watch
 
@@ -45,8 +48,8 @@ func Initialize() {
 		ManagerInstance =
 			&Manager{
 				World:      ecs.World{},
-				ClientsOut: make(map[string]chan erutan.Packet),
-				Broadcast:  make(chan erutan.Packet, 1000),
+				ClientsIn:  make(chan erutan.ClientPacket, 100000),
+				BroadcastOut:  make(chan erutan.Packet, 1000),
 				Watch:      *obs.NewWatch(),
 			}
 	})
@@ -69,33 +72,44 @@ func (m *Manager) Run() {
 	m.Watch.Register(c)
 	m.Watch.Register(n)
 
-	gs := cfg.Global.Logic.GroundSize - 1
-	p := perlin.NewPerlin(1, 1, 1, 1337)
-	for x := 0.; x < gs; x++ {
-		for y := 0.; y < gs; y++ {
-			noise := p.Noise2D(x/10, y/10)
-			//utils.DebugLogf("Noise at %.1f;%.1f: %v", x, y, noise)
-			m.AddGround(protometry.NewVector3(x, float64(int(10*noise))-5, y), 1)
-		}
-	}
+	//gs := cfg.Global.Logic.GroundSize
+	//p := perlin.NewPerlin(1, 1, 1, 1337)
+	//for x := 0.; x < gs; x++ {
+	//	for y := 0.; y < gs; y++ {
+	//		noise := p.Noise2D(x/10, y/10)
+	//		//utils.DebugLogf("Noise at %.1f;%.1f: %v", x, y, noise)
+	//		m.AddGround(protometry.NewVector3(x, float64(int(10*noise))-5, y), 1)
+	//	}
+	//}
+	//ds := DiamondSquareAlgorithm(int(math.Pow(2, 8))+1, 40, 1)
+	//sideLength := 40.
+	//for x := 0.; int(x) < len(ds); x++ {
+	//	for y := 0.; int(y) < len(ds[int(x)]); y++ {
+	//		m.AddGround(protometry.NewVector3(x*sideLength,
+	//			float64(int(sideLength*ds[int(x)][int(y)])),
+	//			y*sideLength),
+	//			sideLength)
+	//	}
+	//}
 
 	for i := 0; i < cfg.Global.Logic.InitialHerbs; i++ {
-		p := protometry.RandomCirclePoint(0, 0, gs/2)
+		p := protometry.RandomCirclePoint(0, 0,0, 50)
 		m.AddHerb(&p)
 	}
 
 	for i := 0; i < cfg.Global.Logic.Herbivorous.Quantity; i++ {
-		p := protometry.RandomCirclePoint(0, 0, gs/2)
+		p := protometry.RandomCirclePoint(0, 0,0, 50)
 		m.AddHerbivorous(&p, protometry.NewVector3(1, 1, 1), -1)
 	}
 
-	// FIXME: octree visualisation, make only vertices draw, not faces
+	// FIXME: octree visualisation, make only edges draw, not faces
 	//color := erutan.Component_RenderComponent_Color{
 	//	Red:   1,
 	//	Green: 1,
 	//	Blue:  1,
 	//	Alpha: 0.7,
-	//}
+	//}3
+	//
 	//nodes := c.objects.GetNodes()
 	//for _, n := range nodes {
 	//	r := n.GetRegion()
@@ -108,7 +122,15 @@ func (m *Manager) Run() {
 	lastUpdateTime := utils.GetProtoTime()
 	for {
 		dt := float64(utils.GetProtoTime()-lastUpdateTime) / math.Pow(10, 9)
-		if dt > cfg.Global.FramesPerSecond { // 50fps
+		if dt > cfg.Global.UpdatesRate { // 50fps
+			select {
+			case msg := <-m.ClientsIn:
+				m.OnClientPacket(msg.ClientToken, msg.Packet)
+				//utils.DebugLogf("received message %T", msg.Type)
+			default:
+				//utils.DebugLogf("no message received")
+			}
+			//utils.DebugLogf("blok")
 			// This will usually be called within the game-loop, in order to update all Systems on every frame.
 			m.World.Update(dt * cfg.Global.Logic.TimeScale)
 			lastUpdateTime = utils.GetProtoTime()
@@ -121,7 +143,6 @@ func (m *Manager) OnClientPacket(tkn string, p erutan.Packet) {
 	//utils.DebugLogf("OnClientPacket %v", p.Type)
 	switch t := p.Type.(type) {
 	case *erutan.Packet_UpdateParameters:
-		// Then do some global (dangerous :p)) logic
 		for _, element := range t.UpdateParameters.Parameters {
 			switch param := element.Type.(type) {
 			case *erutan.Packet_UpdateParametersPacket_Parameter_CullingArea,
@@ -172,28 +193,20 @@ func (m *Manager) OnClientPacket(tkn string, p erutan.Packet) {
 		b := protometry.NewBoxOfSize(t.UpdateSpaceRequest.ActualSpace.Position.X,
 			t.UpdateSpaceRequest.ActualSpace.Position.Y,
 			t.UpdateSpaceRequest.ActualSpace.Position.Z,
-			float64(m.networkSystem.objects.GetSize()))
+			cfg.Global.Logic.OctreeSize)
+		//min := protometry.Min(*t.UpdateSpaceRequest.ActualSpace.Position, *t.UpdateSpaceRequest.NewSpace.Position)
+		//max := protometry.Min(*t.UpdateSpaceRequest.ActualSpace.Position, *t.UpdateSpaceRequest.NewSpace.Position)
+		//b := protometry.NewBoxMinMax(min.X, min.Y, min.Z, max.X, max.Y, max.Z)
 		o := m.networkSystem.objects.Get(t.UpdateSpaceRequest.ObjectId, *b)
-		//var o *octree.Object
-		//// Super inefficient yet, opti = above but if client move too fast we miss him :D
-		//m.networkSystem.objects.Range(func(object *octree.Object) bool {
-		//	if object.ID() == t.UpdateSpaceRequest.ObjectId {
-		//		o = object
-		//		return false
-		//	}
-		//	return true
-		//})
 
 		if o != nil {
 			//utils.DebugLogf("Client [%s] request update to %v, actual %v", tkn,
 			//	t.UpdateSpaceRequest.NewSpace.Position,
 			//	t.UpdateSpaceRequest.ActualSpace.Position)
 
-			//utils.DebugLogf("yay %v", t.UpdateObject)
 			// Ignores physics
-			m.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateResponse{Me: o, NewPosition: *t.UpdateSpaceRequest.NewSpace.Position}})
-			// Doesn't ignore physics
-			//m.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{Object: *o, NewPosition: *sc.Position}})
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateResponse{
+				Objects: []struct{octree.Object;protometry.Vector3}{{Object: *o.Clone(), Vector3: *t.UpdateSpaceRequest.NewSpace.Position}}}})
 		} else { // Update object
 			utils.DebugLogf("Client [%s] tried to update an in-existent object %d", tkn, t.UpdateSpaceRequest.ObjectId)
 		}
@@ -202,7 +215,7 @@ func (m *Manager) OnClientPacket(tkn string, p erutan.Packet) {
 		utils.DebugLogf("Start armageddon")
 		// My theory is that this function is ran in another goroutine so it's better to get all objects at this given time
 		// One shot and then act instead of iterating
-		objs := m.networkSystem.objects.GetAllObjects()
+		objs := m.networkSystem.objects.GetAllObjects() // TODO: disable suicide ?
 		for _, obj := range objs {
 			m.World.RemoveObject(obj)
 		}
@@ -224,4 +237,20 @@ func (m *Manager) OnClientPacket(tkn string, p erutan.Packet) {
 	default:
 		utils.DebugLogf("Client sent unimplemented packet: %v", t)
 	}
+}
+
+
+func (m *Manager) Send(clientToken string, packet erutan.Packet) {
+	packet.Metadata = &erutan.Metadata{Timestamp: ptypes.TimestampNow()}
+	// Sync map useful in case a client disconnect while we're trying to send him something
+	if inter, ok := m.ClientsOut.Load(clientToken); ok {
+		if channel, ok2 := inter.(chan erutan.Packet); ok2 {
+			channel <- packet
+		}
+	}
+}
+
+func (m *Manager) Broadcast(packet erutan.Packet) {
+	packet.Metadata = &erutan.Metadata{Timestamp: ptypes.TimestampNow()}
+	m.BroadcastOut<-packet
 }

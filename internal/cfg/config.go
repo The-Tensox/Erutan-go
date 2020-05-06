@@ -2,7 +2,6 @@ package cfg
 
 import (
 	"fmt"
-	"github.com/The-Tensox/protometry"
 	"github.com/kelseyhightower/envconfig"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -22,6 +21,8 @@ type Config struct {
 		// TimeScale defines the Server's time scale, the higher the faster
 		TimeScale float64 `yaml:"time_scale"`
 
+		OctreeSize float64 `yaml:"octree_size"`
+
 		// GroundSize ...
 		GroundSize float64 `yaml:"ground_size"`
 
@@ -37,24 +38,25 @@ type Config struct {
 		InitialHerbs       int `yaml:"initial_herbs"`
 
 		Player struct {
-			Spawn protometry.Vector3 `yaml:"spawn"`
+			// Can't use protometry.Vector3 because can't extend type outside package
+			Spawn []float64 `yaml:"spawn"`
 			Culling float64 `yaml:"culling"`
 		} `yaml:"player"`
 	} `yaml:"logic"`
 
 	// DebugMode name is self explanatory ...
-	DebugMode bool `yaml:"debug_mode"`
-	SslCert string `yaml:"ssl_cert"`
-	SslKey string `yaml:"ssl_key"`
-	MetricsPort string `yaml:"metrics_port"`
+	DebugMode   bool    `yaml:"debug_mode"`
+	SslCert     string  `yaml:"ssl_cert"`
+	SslKey      string  `yaml:"ssl_key"`
+	MetricsPort string  `yaml:"metrics_port"`
 	NetworkRate float64 `yaml:"network_rate"`
-	FramesPerSecond float64 `yaml:"frames_per_second"`
+	UpdatesRate float64 `yaml:"updates_rate"`
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf("{ Server: %v, Logic: %v,DebugMode: %v, SslCert: %v, SslKey: " +
 		"%v, MetricsPort: %v, NetworkRate: %v, FPS: %v }",
-		c.Server, c.Logic, c.DebugMode, c.SslCert, c.SslKey, c.MetricsPort, c.NetworkRate, c.FramesPerSecond)
+		c.Server, c.Logic, c.DebugMode, c.SslCert, c.SslKey, c.MetricsPort, c.NetworkRate, c.UpdatesRate)
 }
 
 func Get() Config {

@@ -16,6 +16,7 @@ import (
 func (m *Manager) AddDebug(position *protometry.Vector3, mesh protometry.Mesh, color erutan.Component_RenderComponent_Color) {
 	obj := BasicObject{}
 	ocObj := octree.NewObjectCube(nil, position.X, position.Y, position.Z, 1)
+
 	obj.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
@@ -36,7 +37,7 @@ func (m *Manager) AddDebug(position *protometry.Vector3, mesh protometry.Mesh, c
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *NetworkSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(), // We want all systems to have their own local state, no pointers in-between
 				[]*erutan.Component{
 					{Type: &erutan.Component_Space{Space: obj.Component_SpaceComponent}},
 					{Type: &erutan.Component_Render{Render: obj.Component_RenderComponent}},
@@ -50,13 +51,14 @@ func (m *Manager) AddDebug(position *protometry.Vector3, mesh protometry.Mesh, c
 func (m *Manager) AddGround(position *protometry.Vector3, sideLength float64) {
 	obj := BasicObject{}
 	ocObj := octree.NewObjectCube(nil, position.X, position.Y, position.Z, sideLength)
+
 	obj.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
 		Scale:    protometry.NewVector3(1, 1, 1),
 	}
 	var c []*erutan.Component_RenderComponent_Color
-	mesh := protometry.NewMeshSquareCuboid(1, true)
+	mesh := protometry.NewMeshSquareCuboid(sideLength, true)
 	for range mesh.Vertices {
 		c = append(c, &erutan.Component_RenderComponent_Color{
 			Red:   0,
@@ -82,12 +84,12 @@ func (m *Manager) AddGround(position *protometry.Vector3, sideLength float64) {
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *CollisionSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				obj.Component_SpaceComponent,
 				obj.Component_BehaviourTypeComponent,
 				obj.Component_PhysicsComponent)
 		case *NetworkSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				[]*erutan.Component{
 					{Type: &erutan.Component_Space{Space: obj.Component_SpaceComponent}},
 					{Type: &erutan.Component_Render{Render: obj.Component_RenderComponent}},
@@ -101,6 +103,7 @@ func (m *Manager) AddGround(position *protometry.Vector3, sideLength float64) {
 func (m *Manager) AddHerb(position *protometry.Vector3) {
 	obj := BasicObject{}
 	ocObj := octree.NewObjectCube(nil, position.X, position.Y, position.Z, 1)
+
 	obj.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
@@ -133,15 +136,15 @@ func (m *Manager) AddHerb(position *protometry.Vector3) {
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *CollisionSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				obj.Component_SpaceComponent,
 				obj.Component_BehaviourTypeComponent,
 				obj.Component_PhysicsComponent)
 		case *EatableSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				obj.Component_SpaceComponent)
 		case *NetworkSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				[]*erutan.Component{
 					{Type: &erutan.Component_Space{Space: obj.Component_SpaceComponent}},
 					{Type: &erutan.Component_Render{Render: obj.Component_RenderComponent}},
@@ -155,6 +158,8 @@ func (m *Manager) AddHerb(position *protometry.Vector3) {
 func (m *Manager) AddHerbivorous(position *protometry.Vector3, scale *protometry.Vector3, speed float64) {
 	obj := Herbivorous{}
 	ocObj := octree.NewObjectCube(nil, position.X, position.Y, position.Z, scale.X) // TODO: Only cubes handled atm
+
+
 	obj.Component_HealthComponent = &erutan.Component_HealthComponent{Life: cfg.Global.Logic.Herbivorous.Life}
 	obj.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
@@ -198,19 +203,19 @@ func (m *Manager) AddHerbivorous(position *protometry.Vector3, scale *protometry
 		switch sys := system.(type) {
 		case *CollisionSystem:
 			//utils.DebugLogf("CollisionSystem add %d", ocObj.ID())
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				obj.Component_SpaceComponent,
 				obj.Component_BehaviourTypeComponent,
 				obj.Component_PhysicsComponent)
 		case *HerbivorousSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				obj.Component_SpaceComponent,
 				obj.Target,
 				obj.Component_HealthComponent,
 				obj.Component_SpeedComponent)
 		case *NetworkSystem:
 			//utils.DebugLogf("NetworkSystem add %d", ocObj.ID())
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				[]*erutan.Component{
 					{Type: &erutan.Component_Space{Space: obj.Component_SpaceComponent}},
 					{Type: &erutan.Component_Render{Render: obj.Component_RenderComponent}},
@@ -226,6 +231,7 @@ func (m *Manager) AddHerbivorous(position *protometry.Vector3, scale *protometry
 func (m *Manager) AddPlayer(position *protometry.Vector3, token string) (uint64, BasicObject) {
 	obj := BasicObject{}
 	ocObj := octree.NewObjectCube(nil, position.X, position.Y, position.Z, 1)
+
 	obj.Component_SpaceComponent = &erutan.Component_SpaceComponent{
 		Position: position,
 		Rotation: protometry.NewQuaternion(0, 0, 0, 0),
@@ -260,12 +266,12 @@ func (m *Manager) AddPlayer(position *protometry.Vector3, token string) (uint64,
 	for _, system := range m.World.Systems() {
 		switch sys := system.(type) {
 		case *CollisionSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				obj.Component_SpaceComponent,
 				obj.Component_BehaviourTypeComponent,
 				obj.Component_PhysicsComponent)
 		case *NetworkSystem:
-			sys.Add(*ocObj,
+			sys.Add(*ocObj.Clone(),
 				[]*erutan.Component{
 					{Type: &erutan.Component_Space{Space: obj.Component_SpaceComponent}},
 					{Type: &erutan.Component_Render{Render: obj.Component_RenderComponent}},

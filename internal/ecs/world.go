@@ -86,7 +86,6 @@ func (w *World) Update(dt float64) {
 	for _, system := range w.Systems() {
 		system.Update(dt)
 	}
-	return
 }
 
 // RemoveObject removes the object across all systems.

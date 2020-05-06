@@ -8,6 +8,7 @@ import (
 	erutan "github.com/The-Tensox/Erutan-go/protobuf"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
+	"math"
 )
 
 type collisionObject struct {
@@ -22,11 +23,11 @@ type CollisionSystem struct {
 }
 
 func NewCollisionSystem() *CollisionSystem {
-	return &CollisionSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0, cfg.Global.Logic.GroundSize*1000))}
+	return &CollisionSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0, cfg.Global.Logic.OctreeSize))}
 }
 
-func (c *CollisionSystem) Priority() int {
-	return 0
+func (c CollisionSystem) Priority() int {
+	return math.MaxInt64
 }
 
 // Add adds an object to the CollisionSystem. To be added, the object has to have a basic and space component.
@@ -55,13 +56,19 @@ func (c *CollisionSystem) Remove(object octree.Object) {
 func (c *CollisionSystem) Update(dt float64) {
 	// Gravity
 	return
-	if dt > cfg.Global.FramesPerSecond*1 { // FIXME: quick hack, throttle to avoid spam client when connecting (makign crash)
+	if dt > cfg.Global.UpdatesRate*1 { // FIXME: quick hack, throttle to avoid spam client when connecting (makign crash)
 		c.objects.Range(func(o *octree.Object) bool {
 			if co, ok := o.Data.(*collisionObject); ok {
 				if co.UseGravity {
 					newPosition := co.Position
 					newPosition.Y = newPosition.Y - 1*dt
-					ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{Object: *o, NewPosition: *newPosition, Dt: dt}})
+					ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{
+						Object: struct {
+							octree.Object
+							protometry.Vector3
+						}{Object: *o, Vector3: *newPosition},
+						Dt: dt,
+					}})
 					//utils.DebugLogf("%v %v", newPosition, o.Bounds.GetCenter())
 				}
 				//	// TODO: mass -> heavier fall faster ...
@@ -72,11 +79,12 @@ func (c *CollisionSystem) Update(dt float64) {
 
 }
 
-// PhysicsUpdate will check collisions with new space and update accordingly
-func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newPosition protometry.Vector3, dt float64) {
+// ComputePhysics will check collisions with new space and update accordingly
+func (c *CollisionSystem) ComputePhysics(object octree.Object, newPosition protometry.Vector3, dt float64) {
 	// We need to find the current Object in collisionSystem's Octree
 	// FIXME: redundant with getcolliding
-	objectCastedToCollisionObject := Find(c.objects, object)
+	//objectCastedToCollisionObject := Find(c.objects, object)
+	objectCastedToCollisionObject := c.objects.Get(object.ID(), object.Bounds)
 	if objectCastedToCollisionObject == nil {
 		return
 	}
@@ -89,59 +97,56 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newPosition protom
 		//	object.ID(), objectCastedToCollisionObject.Bounds.GetCenter(), newPosition, objectsCollided)
 		ManagerInstance.Watch.NotifyAll(obs.Event{
 			Value: obs.PhysicsUpdateResponse{
-				Me:          objectCastedToCollisionObject,
-				NewPosition: newPosition,
-				Other:       nil, // No collision here !
-				Dt:          dt,
+				Objects: []struct {
+					octree.Object
+					protometry.Vector3
+				}{{*objectCastedToCollisionObject.Clone(), newPosition}},
+				Dt: dt,
 			},
 		})
 		return
 	}
 
-	for _, o := range objectsCollided {
+	// Handle all collisions
+	for i := range objectsCollided {
 		// Ignore self-collision
-		if !o.Equal(*objectCastedToCollisionObject) {
+		if !objectsCollided[i].Equal(*objectCastedToCollisionObject) {
 			//utils.DebugLogf("collision between id:%v, pos:%v and \nid:%v, pos:%v",
 			//	objectCastedToCollisionObject.ID(),
 			//	objectCastedToCollisionObject.Bounds.GetCenter(),
-			//	o.ID(),
-			//	o.Bounds.GetCenter())
+			//	objectsCollided[i].ID(),
+			//	objectsCollided[i].Bounds.GetCenter())
 			mon.CollisionCounter.Inc()
-			// TODO: maybe we should also apply translation to collided object depending on some physical stuff
-			// TODO: OK, atm lets just do this: no collision = ok u can move, collision = don't move
-			// Somehow a computation of the place it should be after collision: FIXME
-			//newMin := objectCastedToCollisionObject.Bounds.Min.Minus(*o.Bounds.Min)
-			//newMax := objectCastedToCollisionObject.Bounds.Max.Minus(*o.Bounds.Max)
-			objectCastedToCollisionObject.Bounds.Min = objectCastedToCollisionObject.Bounds.Min.Lerp(o.Bounds.Min, 0.5)
-			objectCastedToCollisionObject.Bounds.Max = objectCastedToCollisionObject.Bounds.Max.Lerp(o.Bounds.Max, 0.5)
-
-			// Kinda redundant, is it ok to use at two places position ? (octree object + ecs component synced)
-			//co := objectCastedToCollisionObject.Data.(*collisionObject)
-			//co2 := o.Data.(*collisionObject)
-			//co.UseGravity = false
-			//co2.UseGravity = false
-			//center := objectCastedToCollisionObject.Bounds.GetCenter()
-			//co.Position = &center
+			// Compute new positions of both objects
+			//newPositionMe := objectCastedToCollisionObject.Bounds.GetCenter() // Sure?
+			//newPositionOther := objectsCollided[i].Bounds.GetCenter()
 			//
-			//// Notify every collided object with their new positions
-			//c.objects.Move(objectCastedToCollisionObject, center.X, center.Y, center.Z)
-
-			// debug raycast thing
-
-			//c1 := objectCastedToCollisionObject.Bounds.GetCenter()
-			//c2 := o.Bounds.GetCenter()
-			// Middle point between two objects center ?
-			//possibleNaivePositionAfterCollision := c1.Lerp(&c2, 0.5)
-			//ManagerInstance.AddDebug(&newPosition,
-			//	*protometry.NewMeshSquareCuboid(1, true),
-			//	/**protometry.NewMeshRectangularCuboid(*possibleNaivePositionAfterCollision, *protometry.NewVector3(1, 1, 1)),*/
-			//	erutan.Component_RenderComponent_Color{
-			//		Red:   1,
-			//		Green: 0,
-			//		Blue:  1,
-			//		Alpha: 0.7,
-			//	})
-			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateResponse{Me: &o, Other: objectCastedToCollisionObject, Dt: dt}})
+			//meCo := objectCastedToCollisionObject.Data.(*collisionObject)
+			//otherCo := objectsCollided[i].Data.(*collisionObject)
+			//if otherCo.IsKinematic {
+			//
+			//} else {
+			//	//newPositionOther.Add(meCo.)
+			//}
+			//
+			//// Compute new position of the object that moved
+			//// Check if it can climb on that object (Y axis)
+			//if objectsCollided[i].Bounds.Max.Y-objectCastedToCollisionObject.Bounds.Min.Y > 0.25 {
+			//	newPosition.Y+=0.25
+			//}
+			//objectCastedToCollisionObject.Bounds.Min = objectCastedToCollisionObject.Bounds.Min.Lerp(o.Bounds.Min, 0.5)
+			//objectCastedToCollisionObject.Bounds.Max = objectCastedToCollisionObject.Bounds.Max.Lerp(o.Bounds.Max, 0.5)
+			// Atm doesn't move in case of collision
+			ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateResponse{
+				Objects: []struct {
+					octree.Object
+					protometry.Vector3
+				}{
+					{*objectCastedToCollisionObject.Clone(), objectCastedToCollisionObject.Bounds.GetCenter()},
+					{*objectsCollided[i].Clone(), objectsCollided[i].Bounds.GetCenter()}, // First object with its new position
+				},
+				Dt: dt}},
+			)
 		}
 	}
 }
@@ -149,23 +154,29 @@ func (c *CollisionSystem) PhysicsUpdate(object octree.Object, newPosition protom
 func (c *CollisionSystem) Handle(event obs.Event) {
 	switch e := event.Value.(type) {
 	case obs.PhysicsUpdateRequest:
-		c.PhysicsUpdate(e.Object, e.NewPosition, e.Dt)
+		c.ComputePhysics(e.Object.Object, e.Object.Vector3, e.Dt)
 	case obs.PhysicsUpdateResponse:
-		// No collision here
-		if e.Other == nil {
-			me := Find(c.objects, *e.Me)
+		// Update position of every objects, if there was a collision or not
+		//if len(e.Objects) == 2 {
+		//	utils.DebugLogf("col %v - %v", e.Objects[0], e.Objects[1])
+		//}
+		for i := range e.Objects {
+			//utils.DebugLogf("need to move %v; %v to %v", obj.ID(), obj.Bounds.GetCenter(), obj.Vector3)
+			me := c.objects.Get(e.Objects[i].Object.ID(), e.Objects[i].Object.Bounds)
+			//me := Find(c.objects, obj.Object)
 			if me == nil {
-				utils.DebugLogf("Unable to find %v in system %T", e.Me.ID(), c)
+				utils.DebugLogf("Unable to find %v in system %T", e.Objects[i].Object.ID(), c)
 				return
 			}
-			asCo := me.Data.(*collisionObject)
-			*asCo.Position = e.NewPosition
-			// Need to reinsert in the octree
-			if !c.objects.Move(me, e.NewPosition.X, e.NewPosition.Y, e.NewPosition.Z) {
-				utils.DebugLogf("Failed to move %v", me)
+			if asCo, ok := me.Data.(*collisionObject); ok {
+				*asCo.Position = e.Objects[i].Vector3
 			}
-			// Over
-			return
+			// Need to reinsert in the octree
+			if !c.objects.Move(me, e.Objects[i].Vector3.X, e.Objects[i].Vector3.Y, e.Objects[i].Vector3.Z) {
+				utils.DebugLogf("Failed to move %v", me)
+			} else {
+				//utils.DebugLogf("moved %v to %v", me.ID(), me.Bounds.GetCenter())
+			}
 		}
 	}
 }
