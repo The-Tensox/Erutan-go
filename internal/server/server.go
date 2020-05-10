@@ -4,21 +4,23 @@ import (
 	"context"
 	"fmt"
 	"github.com/The-Tensox/Erutan-go/internal/cfg"
+	"github.com/The-Tensox/Erutan-go/internal/erutan"
+	"github.com/The-Tensox/Erutan-go/internal/log"
 	"github.com/The-Tensox/Erutan-go/internal/obs"
 	"github.com/The-Tensox/protometry"
 	"github.com/golang/protobuf/ptypes"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/The-Tensox/Erutan-go/internal/game"
 	"github.com/The-Tensox/Erutan-go/internal/utils"
-	erutan "github.com/The-Tensox/Erutan-go/protobuf"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -48,10 +50,7 @@ func (s *Server) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cert, err := credentials.NewServerTLSFromFile(cfg.Global.SslCert, cfg.Global.SslKey)
-	if err != nil {
-		log.Fatalf("failed to load key pair: %s", err)
-	}
+
 
 	maxConnectionAgeGrace, _ := time.ParseDuration("20s")
 	t, _ := time.ParseDuration("1s")
@@ -60,43 +59,56 @@ func (s *Server) Run(ctx context.Context) error {
 		// The following grpc.ServerOption adds an interceptor for all unary
 		// RPCs. To configure an interceptor for streaming RPCs, see:
 		// https://godoc.org/google.golang.org/grpc#StreamInterceptor
-		grpc.UnaryInterceptor(ensureValidToken),
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			grpc_prometheus.StreamServerInterceptor,
+			grpc_zap.StreamServerInterceptor(log.Zap),
+		)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc_prometheus.UnaryServerInterceptor,
+			grpc_zap.UnaryServerInterceptor(log.Zap),
+			ensureValidToken,
+		)),
 		//grpc.StreamInterceptor(streamInterceptor),
 		// Enable TLS for all incoming connections.
-		grpc.Creds(cert),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionAgeGrace: maxConnectionAgeGrace,
 			Time:                  t,
 		}),
 	}
+	if cfg.Get().Ssl {
+		cert, err := credentials.NewServerTLSFromFile(cfg.Get().SslCert, cfg.Get().SslKey)
+		if err != nil {
+			log.Zap.Error("failed to load key pair", zap.Error(err))
+		}
+		opts = append(opts, grpc.Creds(cert))
+	}
 	srv := grpc.NewServer(opts...)
 	grpc_prometheus.Register(srv)
 	// Register Prometheus metrics handler.
 	http.Handle("/metrics", promhttp.Handler())
-	go http.ListenAndServe(fmt.Sprintf(":%s", cfg.Global.MetricsPort), nil)
+	go http.ListenAndServe(fmt.Sprintf(":%s", cfg.Get().MetricsPort), nil)
 	erutan.RegisterErutanServer(srv, s)
 	l, err := net.Listen("tcp", s.Host)
 	if err != nil {
 		return err
 	}
 
-	game.Initialize()
+	erutan.Initialize()
 	go s.broadcast(ctx)
-	go game.ManagerInstance.Run()
+	go erutan.ManagerInstance.Run()
 
 	go func() {
 		err = srv.Serve(l)
 		if err != nil {
-			utils.ServerLogf(time.Now(), "Failed to serve gRPC server")
+			log.Zap.Error("Failed to serve gRPC server")
 		}
 		cancel()
 	}()
 
 	<-ctx.Done()
 
-	//close(game.ManagerInstance.Broadcast)
-	utils.ServerLogf(time.Now(), "shutting down")
+	close(erutan.ManagerInstance.BroadcastOut)
+	log.Zap.Info("shutting down")
 
 	srv.GracefulStop()
 	return nil
@@ -105,7 +117,7 @@ func (s *Server) Run(ctx context.Context) error {
 func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 	tkn := utils.RandomString()
 	// TODO: later could image a default config for clients inside a yaml or whatever
-	pos := cfg.Global.Logic.Player.Spawn
+	pos := cfg.Get().Logic.Player.Spawn
 	clientSettings := erutan.Packet_UpdateParameters{
 		UpdateParameters: &erutan.Packet_UpdateParametersPacket{
 			Parameters: []*erutan.Packet_UpdateParametersPacket_Parameter{
@@ -117,22 +129,22 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 				},
 				{
 					Type: &erutan.Packet_UpdateParametersPacket_Parameter_CullingArea{
-						CullingArea: protometry.NewBoxOfSize(pos[0], pos[1], pos[2], cfg.Global.Logic.Player.Culling),
+						CullingArea: protometry.NewBoxOfSize(pos[0], pos[1], pos[2], cfg.Get().Logic.Player.Culling),
 					},
 				},
 			},
 		},
 	}
 
-	game.ManagerInstance.ClientsSettings.Store(tkn, clientSettings)
+	erutan.ManagerInstance.ClientsSettings.Store(tkn, clientSettings)
 	// Notify that this client just connected
-	cs, _ := game.ManagerInstance.ClientsSettings.Load(tkn)
+	cs, _ := erutan.ManagerInstance.ClientsSettings.Load(tkn)
 
 	streamOpened := make(chan bool)
 	go s.clientStreamHandler(srv, tkn, streamOpened)
 	<-streamOpened // Wait that the stream has been opened to notify a client connection
-	game.ManagerInstance.Watch.NotifyAll(obs.Event{
-		Value: obs.ClientConnection{
+	erutan.ManagerInstance.NotifyAll(obs.Event{
+		Value: erutan.ClientConnection{
 			ClientToken: tkn,
 			Settings:    cs.(erutan.Packet_UpdateParameters),
 		},
@@ -144,9 +156,9 @@ func (s *Server) Stream(srv erutan.Erutan_StreamServer) error {
 		} else if err != nil {
 			return err
 		}
-		// Distribute to the game manager to handle logic
-		game.ManagerInstance.ClientsIn<-*erutan.NewClientPacket(tkn, *req)
-		//game.ManagerInstance.OnClientPacket(tkn, *req)
+		// Distribute to the erutan manager to handle logic
+		erutan.ManagerInstance.ClientsIn<-*erutan.NewClientPacket(tkn, *req)
+		//erutan.ManagerInstance.OnClientPacket(tkn, *req)
 	}
 
 	<-srv.Context().Done()
@@ -172,22 +184,15 @@ func (s *Server) clientStreamHandler(srv erutan.Erutan_StreamServer, tkn string,
 		case <-srv.Context().Done():
 			return
 		case res := <-stream:
-			//utils.DebugLogf("sending %T", res.Type)
-			//if x := res.GetUpdateObject(); x != nil {
-			//	utils.DebugLogf("Sending %v", x.Components)
-			//}
-			if x := res.GetCreatePlayer(); x != nil {
-				utils.DebugLogf("Sending %v", x.ObjectId)
-			}
 			if s, ok := status.FromError(srv.Send(&res)); ok {
 				switch s.Code() {
 				case codes.OK:
 					// noop
 				case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
-					utils.DebugLogf("client (%s) terminated connection", tkn)
+					log.Zap.Info("client terminated connection", zap.String("client", tkn))
 					return
 				default:
-					utils.ClientLogf(time.Now(), "failed to send to client (%s): %v", tkn, s.Err())
+					log.Zap.Info("failed to send to client", zap.String("client", tkn), zap.Error(s.Err()))
 					return
 				}
 			}
@@ -196,15 +201,15 @@ func (s *Server) clientStreamHandler(srv erutan.Erutan_StreamServer, tkn string,
 }
 
 func (s *Server) broadcast(ctx context.Context) {
-	for res := range game.ManagerInstance.BroadcastOut {
+	for res := range erutan.ManagerInstance.BroadcastOut {
 		//utils.DebugLogf("Broadcasting %T", res.Type)
-		game.ManagerInstance.ClientsOut.Range(func(key, value interface{}) bool {
+		erutan.ManagerInstance.ClientsOut.Range(func(key, value interface{}) bool {
 			if channel, ok := value.(chan erutan.Packet); ok {
 				select {
 				case channel <- res:
 					// noop
 				default:
-					utils.ServerLogf(time.Now(), "client stream full, dropping message")
+					log.Zap.Error("client stream full, dropping message")
 				}
 			}
 			return true
@@ -214,33 +219,27 @@ func (s *Server) broadcast(ctx context.Context) {
 
 // Initialize the communication of this client
 func (s *Server) openStream(tkn string) (stream chan erutan.Packet) {
-	out := make(chan erutan.Packet, 10000000) // RIP COMPUTER
-	utils.DebugLogf("blocked")
-	//game.ManagerInstance.ClientsMu.Lock()
-	//defer game.ManagerInstance.ClientsMu.Unlock()
-	utils.DebugLogf("unblocked")
-	game.ManagerInstance.ClientsOut.Store(tkn, out)
-	utils.ServerLogf(time.Now(), "Opened stream for client [%s]", tkn)
+	out := make(chan erutan.Packet, 10000000)
+	erutan.ManagerInstance.ClientsOut.Store(tkn, out)
+	log.Zap.Info("Opened stream for client", zap.String("client", tkn))
 	// Return the channel
 	return out
 }
 
 func (s *Server) closeStream(tkn string) {
-	//game.ManagerInstance.ClientsMu.Lock()
-	//defer game.ManagerInstance.ClientsMu.Unlock()
-	if inter, ok := game.ManagerInstance.ClientsOut.Load(tkn); ok {
+	if inter, ok := erutan.ManagerInstance.ClientsOut.Load(tkn); ok {
 		if channel, ok2 := inter.(chan erutan.Packet); ok2 {
-			game.ManagerInstance.ClientsOut.Delete(tkn)
+			erutan.ManagerInstance.ClientsOut.Delete(tkn)
 			close(channel)
 		}
 	}
-	game.ManagerInstance.ClientsSettings.Delete(tkn)
-	game.ManagerInstance.Watch.NotifyAll(obs.Event{ // TODO: check if that doesn't break anything since running in another goroutine
-		Value: obs.ClientDisconnection{
+	erutan.ManagerInstance.ClientsSettings.Delete(tkn)
+	erutan.ManagerInstance.NotifyAll(obs.Event{ // TODO: check if that doesn't break anything since running in another goroutine
+		Value: erutan.ClientDisconnection{
 			ClientToken: tkn,
 		},
 	})
-	utils.ServerLogf(time.Now(), "Closed stream for client %s", tkn)
+	log.Zap.Info("Closed stream for client", zap.String("client", tkn))
 }
 
 // valid validates the authorization.
@@ -264,7 +263,6 @@ func ensureValidToken(ctx context.Context, req interface{}, info *grpc.UnaryServ
 	if !ok {
 		return nil, errMissingMetadata
 	}
-	_, _ = grpc_prometheus.UnaryServerInterceptor(ctx, req, info, handler)
 	// The keys within metadata.MD are normalized to lowercase.
 	// See: https://godoc.org/google.golang.org/grpc/metadata#New
 	if !valid(md["authorization"]) {

@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var Global Config // Good old global variable :D
+var current *Config // Good old global variable :D
 
 type Config struct {
 	Server struct {
@@ -46,6 +46,7 @@ type Config struct {
 
 	// DebugMode name is self explanatory ...
 	DebugMode   bool    `yaml:"debug_mode"`
+	Ssl bool `yaml:"ssl"`
 	SslCert     string  `yaml:"ssl_cert"`
 	SslKey      string  `yaml:"ssl_key"`
 	MetricsPort string  `yaml:"metrics_port"`
@@ -59,12 +60,21 @@ func (c Config) String() string {
 		c.Server, c.Logic, c.DebugMode, c.SslCert, c.SslKey, c.MetricsPort, c.NetworkRate, c.UpdatesRate)
 }
 
-func Get() Config {
+func initialize() {
 	var cfg Config
 	readFile(&cfg)
 	readEnv(&cfg)
-	return cfg
+	current = &cfg
 }
+
+func Get() *Config {
+	if current == nil {
+		initialize()
+	}
+	return current
+}
+
+
 
 func readFile(cfg *Config) {
 	f, err := os.Open("config.yml")

@@ -1,26 +1,27 @@
-package game
+package erutan
 
 import (
 	"github.com/The-Tensox/Erutan-go/internal/cfg"
+	"github.com/The-Tensox/Erutan-go/internal/log"
 	"github.com/The-Tensox/Erutan-go/internal/obs"
-	"github.com/The-Tensox/Erutan-go/internal/utils"
-	erutan "github.com/The-Tensox/Erutan-go/protobuf"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
+	"go.uber.org/zap"
+	"reflect"
 )
 
 // TODO: I think there is some changes to this design to be done, not sure it's clean to mix objects, objects ...
 // TODO: or maybe it's ok idk
 type BasicObject struct {
-	*erutan.Component_SpaceComponent
-	*erutan.Component_RenderComponent
-	*erutan.Component_BehaviourTypeComponent
-	*erutan.Component_PhysicsComponent
-	*erutan.Component_NetworkBehaviourComponent
+	*Component_SpaceComponent
+	*Component_RenderComponent
+	*Component_BehaviourTypeComponent
+	*Component_PhysicsComponent
+	*Component_NetworkBehaviourComponent
 }
 
 type eatableObject struct {
-	*erutan.Component_SpaceComponent
+	*Component_SpaceComponent
 }
 
 type EatableSystem struct {
@@ -28,22 +29,22 @@ type EatableSystem struct {
 }
 
 func NewEatableSystem() *EatableSystem {
-	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0, cfg.Global.Logic.OctreeSize))}
+	return &EatableSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0, cfg.Get().Logic.OctreeSize))}
 }
 
 func (e *EatableSystem) Add(object octree.Object,
-	space *erutan.Component_SpaceComponent) {
+	space *Component_SpaceComponent) {
 	eo := &eatableObject{space}
 	object.Data = eo
 	if !e.objects.Insert(object) {
-		utils.DebugLogf("Failed to insert %v", object)
+		log.Zap.Info("Failed to insert", zap.Any("object", object))
 	}
 }
 
 // Remove removes the Object from the System. This is what most Remove methods will look like
 func (e *EatableSystem) Remove(object octree.Object) {
 	if !e.objects.Remove(object) {
-		//utils.DebugLogf("Failed to remove %d, data: %T", object.ID(), object.Data)
+		log.Zap.Info("Failed to remove", zap.Any("ID", object.ID()), zap.Any("data", reflect.TypeOf(object.Data)))
 	}
 }
 
@@ -52,13 +53,12 @@ func (e *EatableSystem) Update(_ float64) {
 
 func (e *EatableSystem) Handle(event obs.Event) {
 	switch u := event.Value.(type) {
-	case obs.PhysicsUpdateResponse:
+	case PhysicsUpdateResponse:
 		// No collision here
 		if len(u.Objects) == 1 {
 			me := e.objects.Get(u.Objects[0].Object.ID(), u.Objects[0].Object.Bounds)
-			//me := Find(e.objects, u.Objects[0].Object)
 			if me == nil {
-				//utils.DebugLogf("Unable to find %v in system %T", u.Me.ID(), u)
+				//log.Zap.Info("Unable to find %v in system %T", u.Me.ID(), u)
 				return
 			}
 			if asEo, ok := me.Data.(*eatableObject); ok {
@@ -66,7 +66,7 @@ func (e *EatableSystem) Handle(event obs.Event) {
 			}
 			// Need to reinsert in the octree
 			if !e.objects.Move(me, u.Objects[0].Vector3.X, u.Objects[0].Vector3.Y, u.Objects[0].Vector3.Z) {
-				utils.DebugLogf("Failed to move %v", me)
+				log.Zap.Info("Failed to move", zap.Any("object", me))
 			}
 		} else if len(u.Objects) == 2 { // Means collision, shouldn't be > 2 imho
 			me := u.Objects[0].Data.(*collisionObject)
@@ -82,22 +82,22 @@ func (e *EatableSystem) Handle(event obs.Event) {
 				tries++
 			}
 			if tries == 20  {
-				utils.DebugLogf("Couldn't find an empty spot to teleport !!")
+				log.Zap.Info("Couldn't find an empty spot to teleport !!")
 				return
 			}
 			// If an animal collided with me
 			// TODO: FIXME
-			if me.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
-				other.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
+			if me.Tag == Component_BehaviourTypeComponent_ANIMAL &&
+				other.Tag == Component_BehaviourTypeComponent_VEGETATION {
 				// Teleport somewhere else
-				ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{
+				ManagerInstance.NotifyAll(obs.Event{Value: PhysicsUpdateRequest{
 					Object: struct{octree.Object;protometry.Vector3}{Object: *u.Objects[1].Object.Clone(),
 						Vector3: *newSpotToTeleport},
 					Dt: u.Dt}})
-			} else if other.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL &&
-				me.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION {
+			} else if other.Tag == Component_BehaviourTypeComponent_ANIMAL &&
+				me.Tag == Component_BehaviourTypeComponent_VEGETATION {
 				// Teleport somewhere else
-				ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{
+				ManagerInstance.NotifyAll(obs.Event{Value: PhysicsUpdateRequest{
 					Object: struct{octree.Object;protometry.Vector3}{Object: *u.Objects[0].Object.Clone(),
 						Vector3: *newSpotToTeleport},
 					Dt: u.Dt}})

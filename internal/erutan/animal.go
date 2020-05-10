@@ -1,33 +1,35 @@
-package game
+package erutan
 
 import (
 	"github.com/The-Tensox/Erutan-go/internal/cfg"
+	"github.com/The-Tensox/Erutan-go/internal/log"
 	"github.com/The-Tensox/Erutan-go/internal/mon"
 	"github.com/The-Tensox/Erutan-go/internal/obs"
 	"github.com/The-Tensox/Erutan-go/internal/utils"
-	erutan "github.com/The-Tensox/Erutan-go/protobuf"
 	"github.com/The-Tensox/octree"
 	"github.com/The-Tensox/protometry"
+	"go.uber.org/zap"
+	"reflect"
 )
 
 
 type Herbivorous struct {
-	*erutan.Component_SpaceComponent
-	*erutan.Component_HealthComponent
+	*Component_SpaceComponent
+	*Component_HealthComponent
 	Target *BasicObject
-	*erutan.Component_RenderComponent
-	*erutan.Component_BehaviourTypeComponent
-	*erutan.Component_SpeedComponent
-	*erutan.Component_PhysicsComponent
-	*erutan.Component_NetworkBehaviourComponent
+	*Component_RenderComponent
+	*Component_BehaviourTypeComponent
+	*Component_SpeedComponent
+	*Component_PhysicsComponent
+	*Component_NetworkBehaviourComponent
 }
 
 
 type herbivorousObject struct {
-	*erutan.Component_SpaceComponent
+	*Component_SpaceComponent
 	Target *BasicObject
-	*erutan.Component_HealthComponent
-	*erutan.Component_SpeedComponent
+	*Component_HealthComponent
+	*Component_SpeedComponent
 }
 
 // AddLife set health component life, clip it and return true if object is dead
@@ -40,7 +42,7 @@ func (h *herbivorousObject) addLife(value float64) bool {
 		h.Life = 0
 	}
 	mon.LifeGauge.Set(h.Life)
-	//utils.DebugLogf("my life %v", h.Life)
+	//log.Zap.Info("my life %v", h.Life)
 	if h.Life == 0 {
 		return true
 	}
@@ -53,7 +55,7 @@ type HerbivorousSystem struct {
 
 
 func NewHerbivorousSystem() *HerbivorousSystem {
-	return &HerbivorousSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0, cfg.Global.Logic.OctreeSize))}
+	return &HerbivorousSystem{objects: *octree.NewOctree(protometry.NewBoxOfSize(0, 0, 0, cfg.Get().Logic.OctreeSize))}
 }
 
 func (h HerbivorousSystem) Priority() int {
@@ -61,66 +63,49 @@ func (h HerbivorousSystem) Priority() int {
 }
 
 func (h *HerbivorousSystem) Add(object octree.Object,
-	space *erutan.Component_SpaceComponent,
+	space *Component_SpaceComponent,
 	target *BasicObject,
-	health *erutan.Component_HealthComponent,
-	speed *erutan.Component_SpeedComponent) {
+	health *Component_HealthComponent,
+	speed *Component_SpeedComponent) {
 	ho := &herbivorousObject{space, target,
 		health, speed}
 	object.Data = ho
 	if !h.objects.Insert(object) {
-		utils.DebugLogf("Failed to insert %v", object)
+		log.Zap.Info("Failed to insert", zap.Any("object", object))
 	}
 	mon.SpeedGauge.Set(speed.MoveSpeed)
+	mon.VolumeGauge.Set(space.Scale.Sum())
 }
 
 // Remove removes the Object from the System. This is what most Remove methods will look like
 func (h *HerbivorousSystem) Remove(object octree.Object) {
 	if !h.objects.Remove(object) {
-		utils.DebugLogf("Failed to remove %d, data: %T", object.ID(), object.Data)
+		log.Zap.Info("Failed to remove", zap.Any("ID", object.ID()), zap.Any("data", reflect.TypeOf(object.Data)))
 	}
 }
 
 func (h *HerbivorousSystem) Update(dt float64) {
 	for _, object := range h.objects.GetAllObjects() {
 		if ho, ok := object.Data.(*herbivorousObject); ok {
-
-			//volume := ho.Component_SpaceComponent.Scale.X * ho.Component_SpaceComponent.Scale.Y * ho.Component_SpaceComponent.Scale.Z
-
-			//Every animal lose life proportional to deltatime, volume and speed
-			//So bigger and faster animals need more food
-			//if ho.addLife(-3*dt*volume*(ho.MoveSpeed/cfg.Global.Logic.Herbivorous.LifeLossRate)) {
-			//	// Dead
-			//	ManagerInstance.World.RemoveObject(*object)
-			//}
 			val := Clip((-dt*ho.Life)/2000, -0.1, -0.0001)
-			//utils.DebugLogf("Life loss: %v", val)
 			if ho.addLife(val) {
 				// Dead
-				ManagerInstance.World.RemoveObject(object)
+				ManagerInstance.RemoveObject(object)
 				continue
 			}
 
 			// If I don't have a target, let's find one
 			if ho.Target == nil {
 				h.findTarget(ho)
-				//utils.DebugLogf("my target %v", ho.Target)
 			}
 			if ho.Target != nil { // Can still be nil (no target on the map)
 				distance := ho.Position.Distance(*ho.Target.Position)
-
-				//rnd := protometry.RandomCirclePoint(ho.Target.Position.X, ho.Target.Position.Z, 50)
-				//newPos := rnd.Minus(*ho.Position)
 				newPos := ho.Target.Position.Minus(*ho.Position)
 				newPos.Divide(distance)
 				newPos.Scale(dt*ho.MoveSpeed)
 				newPos.Add(ho.Position)
-
-
-				//utils.DebugLogf("I'm here %v, I want to move to %v", object.Bounds.GetCenter(), newPos)
-				//ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{Object: *object, NewPosition: newPos, Dt: dt}})
-				ManagerInstance.Watch.NotifyAll(obs.Event{Value: obs.PhysicsUpdateRequest{
-					Object: struct{octree.Object;protometry.Vector3}{Object: object, Vector3: newPos},
+				ManagerInstance.NotifyAll(obs.Event{Value: PhysicsUpdateRequest{
+					Object: struct{octree.Object;protometry.Vector3}{Object: *object.Clone(), Vector3: newPos},
 					Dt: dt}})
 			}
 		}
@@ -128,12 +113,11 @@ func (h *HerbivorousSystem) Update(dt float64) {
 }
 
 func (h *HerbivorousSystem) findTarget(ho *herbivorousObject) {
-	//utils.DebugLogf("trying to find a target", ho.Life)
 	// Reproduction mode
-	if ho.Life > cfg.Global.Logic.Herbivorous.ReproductionThreshold {
+	if ho.Life > cfg.Get().Logic.Herbivorous.ReproductionThreshold {
 		for _, object := range h.objects.GetAllObjects() {
 			if otherHo, ok := object.Data.(*herbivorousObject); ok {
-				if otherHo.Life > cfg.Global.Logic.Herbivorous.ReproductionThreshold {
+				if otherHo.Life > cfg.Get().Logic.Herbivorous.ReproductionThreshold {
 					newTarget := &BasicObject{}
 					newTarget.Component_SpaceComponent = otherHo.Component_SpaceComponent
 					ho.Target = newTarget
@@ -147,7 +131,7 @@ func (h *HerbivorousSystem) findTarget(ho *herbivorousObject) {
 		}
 	}
 	// Eating mode
-	for _, e := range ManagerInstance.World.Systems() {
+	for _, e := range ManagerInstance.Systems() {
 		if e, ok := e.(*EatableSystem); ok {
 			// Currently look for eatable on the whole map
 			// Is there any eatable on the map?
@@ -156,13 +140,10 @@ func (h *HerbivorousSystem) findTarget(ho *herbivorousObject) {
 			for _, object := range e.objects.GetAllObjects() {
 				if eo, ok := object.Data.(*eatableObject); ok {
 					if minPosition == nil || ho.Position.Distance(*eo.Position) < ho.Position.Distance(*minPosition.Position) {
-						//utils.DebugLogf("eo.position %v distances %v", eo.Position, ho.Position.Distance(*eo.Position))
 						minPosition = eo
 					}
 				}
 			}
-			//utils.DebugLogf("found a herb target %v", minPosition.Position)
-
 			// Potentially no eatable around
 			if minPosition != nil {
 				newTarget := &BasicObject{}
@@ -178,16 +159,13 @@ func (h HerbivorousSystem) Handle(event obs.Event) {
 	switch e := event.Value.(type) {
 	// In the occurrence of this event we want to check if the animal collided
 	// with a vegetation or another animal and take appropriate actions
-	case obs.PhysicsUpdateResponse:
+	case PhysicsUpdateResponse:
 		// No collision here
 		if len(e.Objects) == 1 {
-			//utils.DebugLogf("need to move %v; %v to %v", e.Objects[0].ID(), e.Objects[0].Bounds.GetCenter(), e.Objects[0].Vector3)
-
-			//me := Find(h.objects, e.Objects[0].Object)
 			me := h.objects.Get(e.Objects[0].Object.ID(), e.Objects[0].Object.Bounds)
 
 			if me == nil {
-				//utils.DebugLogf("Unable to find %v in system %T", e.Me.ID(), h)
+				//log.Zap.Info("Unable to find %v in system %T", e.Me.ID(), h)
 				return
 			}
 			if asHo, ok := me.Data.(*herbivorousObject); ok {
@@ -195,9 +173,7 @@ func (h HerbivorousSystem) Handle(event obs.Event) {
 			}
 			// Need to reinsert in the octree
 			if !h.objects.Move(me, e.Objects[0].Vector3.X, e.Objects[0].Vector3.Y, e.Objects[0].Vector3.Z) {
-				utils.DebugLogf("Failed to move %v", me)
-			} else {
-				//utils.DebugLogf("moved %v to %v", me.ID(), me.Bounds.GetCenter())
+				log.Zap.Info("Failed to move", zap.Any("object", me))
 			}
 		} else if len(e.Objects) == 2 { // Means collision, shouldn't be > 2 imho
 			var meHsObject, otherHsObject *octree.Object
@@ -226,15 +202,14 @@ func (h HerbivorousSystem) Handle(event obs.Event) {
 				otherHo = otherHsObject.Data.(*herbivorousObject)
 			}
 
-			//utils.DebugLogf("collision %v %v", meCo, otherCo)
-			if meCo.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION &&
-				otherCo.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL {
+			if meCo.Tag == Component_BehaviourTypeComponent_VEGETATION &&
+				otherCo.Tag == Component_BehaviourTypeComponent_ANIMAL {
 				// me is a vegetation
 				// other is an animal
 
 				if otherHo != nil && otherHsObject != nil {
-					if otherHo.addLife(cfg.Global.Logic.Herbivorous.EatLifeGain) {
-						ManagerInstance.World.RemoveObject(*otherHsObject)
+					if otherHo.addLife(cfg.Get().Logic.Herbivorous.EatLifeGain) {
+						ManagerInstance.RemoveObject(*otherHsObject)
 					}
 					mon.EatCounter.Inc()
 					// Reset target for everyone that had this target
@@ -246,15 +221,15 @@ func (h HerbivorousSystem) Handle(event obs.Event) {
 					}
 				}
 
-			} else if otherCo.Tag == erutan.Component_BehaviourTypeComponent_VEGETATION &&
-				meCo.Tag == erutan.Component_BehaviourTypeComponent_ANIMAL {
+			} else if otherCo.Tag == Component_BehaviourTypeComponent_VEGETATION &&
+				meCo.Tag == Component_BehaviourTypeComponent_ANIMAL {
 
 				// other is a vegetation
 				// me is an animal
 
 				if meHo != nil && meHsObject != nil {
-					if meHo.addLife(cfg.Global.Logic.Herbivorous.EatLifeGain) {
-						ManagerInstance.World.RemoveObject(*meHsObject)
+					if meHo.addLife(cfg.Get().Logic.Herbivorous.EatLifeGain) {
+						ManagerInstance.RemoveObject(*meHsObject)
 					}
 					mon.EatCounter.Inc()
 					// Reset target for everyone that had this target
@@ -267,25 +242,22 @@ func (h HerbivorousSystem) Handle(event obs.Event) {
 				}
 			} else { // Both are animals
 				if meHo != nil && otherHo != nil && meHsObject != nil && otherHsObject != nil &&
-					meHo.Life > cfg.Global.Logic.Herbivorous.ReproductionThreshold &&
-					otherHo.Life > cfg.Global.Logic.Herbivorous.ReproductionThreshold {
+					meHo.Life > cfg.Get().Logic.Herbivorous.ReproductionThreshold &&
+					otherHo.Life > cfg.Get().Logic.Herbivorous.ReproductionThreshold {
 					if meHo.Target != nil {
 						meHo.Target = nil
 					}
 					if otherHo.Target != nil {
 						otherHo.Target = nil
 					}
-					//utils.DebugLogf("reproduction")
 
 					mon.ReproductionCounter.Inc()
-					//utils.DebugLogf("before %v %v", meHo.Life, otherHo.Life)
-					if meHo.addLife(-cfg.Global.Logic.Herbivorous.ReproductionLifeLoss) {
-						ManagerInstance.World.RemoveObject(*meHsObject)
+					if meHo.addLife(-cfg.Get().Logic.Herbivorous.ReproductionLifeLoss) {
+						ManagerInstance.RemoveObject(*meHsObject)
 					}
-					if otherHo.addLife(-cfg.Global.Logic.Herbivorous.ReproductionLifeLoss) {
-						ManagerInstance.World.RemoveObject(*otherHsObject)
+					if otherHo.addLife(-cfg.Get().Logic.Herbivorous.ReproductionLifeLoss) {
+						ManagerInstance.RemoveObject(*otherHsObject)
 					}
-					//utils.DebugLogf("after %v %v", meHo.Life, otherHo.Life)
 
 					speed := ((meHo.MoveSpeed + otherHo.MoveSpeed) / 2) * utils.RandFloats(0.5, 1.5)
 					scale := meHo.Scale.Plus(*otherHo.Scale).Times(0.5).Times(utils.RandFloats(0.5, 1.5))
@@ -293,7 +265,6 @@ func (h HerbivorousSystem) Handle(event obs.Event) {
 					scale.X = Clip(scale.X, 0.1, 5)
 					scale.Y = Clip(scale.Y, 0.1, 5)
 					scale.Z = Clip(scale.Z, 0.1, 5)
-					mon.VolumeGauge.Set(scale.Sum())
 					speed = Clip(speed, 5, 80)
 					position := protometry.RandomCirclePoint(meHo.Position.X, 0, meHo.Position.Z, 10)
 					position.Y = scale.Y // To stay above ground

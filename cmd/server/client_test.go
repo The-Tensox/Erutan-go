@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/The-Tensox/Erutan-go/internal/cfg"
-	erutan "github.com/The-Tensox/Erutan-go/protobuf"
+	"github.com/The-Tensox/Erutan-go/internal/erutan"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -19,13 +19,13 @@ import (
 //	)
 //}
 
+
 func connect(t *testing.T) *grpc.ClientConn {
-	cfg.Global = cfg.Get()
 	go RunMain()
 	tls := true
 	var opts []grpc.DialOption
 	if tls {
-		creds, err := credentials.NewClientTLSFromFile(cfg.Global.SslCert, "")
+		creds, err := credentials.NewClientTLSFromFile(cfg.Get().SslCert, "")
 		if err != nil {
 			t.Fatalf("Failed to create TLS credentials %v", err)
 		}
@@ -35,7 +35,7 @@ func connect(t *testing.T) *grpc.ClientConn {
 	}
 
 	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", cfg.Global.Server.Host, cfg.Global.Server.Port), opts...)
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", cfg.Get().Server.Host, cfg.Get().Server.Port), opts...)
 	if err != nil {
 		t.Fatalf("fail to dial: %v", err)
 	}

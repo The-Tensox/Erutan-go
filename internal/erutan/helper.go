@@ -1,4 +1,4 @@
-package protometry
+package erutan
 
 //// Implements the Unmarshaler interface of the yaml pkg.
 //func (v *Vector3) UnmarshalYAML(value *yaml.Node) error {
@@ -17,3 +17,12 @@ package protometry
 //
 //	return nil
 //}
+
+type ClientPacket struct {
+	ClientToken string
+	Packet Packet
+}
+
+func NewClientPacket(token string, packet Packet) *ClientPacket {
+	return &ClientPacket{token,packet}
+}

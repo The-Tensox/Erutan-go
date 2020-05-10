@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "protobuf/protometry/vector3.proto";
 import "protobuf/protometry/quaternion.proto";
 import "protobuf/protometry/volume.proto";
-option go_package = "github.com/The-Tensox/erutan";
+option go_package = "internal/erutan;erutan";
 option csharp_namespace = "Erutan";
 
 /*
@@ -69,20 +69,21 @@ message Component {
     message PhysicsComponent {
         // Controls whether gravity affects this object
         bool use_gravity = 1;
-        // Controls whether physics affects the object
-        bool is_kinematic = 2;
-        // The mass of the object
-        double mass = 3;
-        // The  velocity vector of the object. It represents the rate of change of object position
-        protometry.Vector3 velocity = 4;
-        // The drag of the object.
-        // Drag can be used to slow down an object. The higher the drag the more the object slows down
-        double drag = 5;
-        // The angular velocity vector of the object measured in radians per second
-        protometry.Vector3 angular_velocity = 6;
-        // The angular drag of the object.
-        // Angular drag can be used to slow down the rotation of an object
-        double angular_drag = 7;
+        // We probably don't want to reimplement a physics engine
+//        // Controls whether physics affects the object
+//        bool is_kinematic = 2;
+//        // The mass of the object
+//        double mass = 3;
+//        // The  velocity vector of the object. It represents the rate of change of object position
+//        protometry.Vector3 velocity = 4;
+//        // The drag of the object.
+//        // Drag can be used to slow down an object. The higher the drag the more the object slows down
+//        double drag = 5;
+//        // The angular velocity vector of the object measured in radians per second
+//        protometry.Vector3 angular_velocity = 6;
+//        // The angular drag of the object.
+//        // Angular drag can be used to slow down the rotation of an object
+//        double angular_drag = 7;
     }
     // Some information about how this object should be synchronized
     message NetworkBehaviourComponent {

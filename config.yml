@@ -10,11 +10,11 @@ logic:
   herbivorous:
     reproduction_threshold: 80
     reproduction_life_loss: 60
-    eat_life_gain: 500
+    eat_life_gain: 50
     life_loss_rate: 500
     quantity: 5
     life: 50
-  initial_herbs: 50
+  initial_herbs: 20
   player:
     spawn:
       - 0
@@ -23,6 +23,7 @@ logic:
     culling: 5000
 
 debug_mode: true
+ssl: true
 ssl_cert: server1.crt
 ssl_key: server1.key
 metrics_port: 34555
